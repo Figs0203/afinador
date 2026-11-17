@@ -21,6 +21,17 @@ Solo pide un permiso: el micrófono.
   puerta de ruido para ignorar el silencio y el ruido de fondo.
 - **Pantalla siempre encendida** mientras el afinador está abierto.
 
+## Capturas
+
+<p align="center">
+  <img src="docs/tuner-cromatico.png" width="300" alt="Modo cromático afinando un C4" />
+  <img src="docs/tuner-guitarra.png" width="300" alt="Modo guitarra con la cuerda E4 resaltada" />
+</p>
+
+A la izquierda, el modo cromático afinando un **C4**: una nota que no es ninguna de las
+seis cuerdas. A la derecha, el modo guitarra en afinación estándar, con la cuerda **E4**
+detectada y su frecuencia objetivo.
+
 ## Instalar en el teléfono
 
 1. Descarga el APK desde [Releases](../../releases).

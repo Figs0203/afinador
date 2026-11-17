@@ -86,6 +86,20 @@ class TunerGaugeView @JvmOverloads constructor(
     private val glowPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val arcRect = RectF()
 
+    /**
+     * The gauge keeps a fixed aspect ratio so the arc always uses most of the
+     * width; the height is capped by whatever space the layout offers.
+     */
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        val measuredWidth = MeasureSpec.getSize(widthMeasureSpec)
+        val desiredHeight = (measuredWidth * 1.02f).toInt()
+        val height = when (MeasureSpec.getMode(heightMeasureSpec)) {
+            MeasureSpec.UNSPECIFIED -> desiredHeight
+            else -> min(desiredHeight, MeasureSpec.getSize(heightMeasureSpec))
+        }
+        setMeasuredDimension(measuredWidth, height)
+    }
+
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         val width = width.toFloat()
@@ -93,8 +107,10 @@ class TunerGaugeView @JvmOverloads constructor(
         if (width <= 0f || height <= 0f) return
 
         val centerX = width / 2f
-        val radius = min(width * 0.39f, height * 0.40f)
-        val centerY = height * 0.585f
+        // The drawing is a fixed composition centred on the view, so it looks the
+        // same whether the gauge is short or fills a tall screen.
+        val radius = min(width * 0.44f, height * 0.43f)
+        val centerY = height / 2f + radius * 0.17f
         val trackWidth = dp(9f)
 
         arcRect.set(centerX - radius, centerY - radius, centerX + radius, centerY + radius)
@@ -133,9 +149,7 @@ class TunerGaugeView @JvmOverloads constructor(
 
         drawTicks(canvas, centerX, centerY, radius, active)
         drawDeviationLabels(canvas, centerX, centerY, radius)
-        if (active) {
-            drawNeedle(canvas, centerX, centerY, radius, accuracyColor)
-        }
+        drawNeedle(canvas, centerX, centerY, radius, if (active) accuracyColor else colorTick)
 
         drawReadout(canvas, centerX, centerY, radius, accuracyColor)
     }
@@ -199,8 +213,8 @@ class TunerGaugeView @JvmOverloads constructor(
         val outer = radius * 0.97f
 
         // Soft halo behind the needle.
-        needlePaint.color = withAlpha(color, 0.25f)
-        needlePaint.strokeWidth = dp(10f)
+        needlePaint.color = withAlpha(color, if (state.active) 0.18f else 0.10f)
+        needlePaint.strokeWidth = dp(7f)
         canvas.drawLine(
             centerX + cosAngle * inner,
             centerY + sinAngle * inner,
@@ -222,7 +236,18 @@ class TunerGaugeView @JvmOverloads constructor(
 
     private fun drawReadout(canvas: Canvas, centerX: Float, centerY: Float, radius: Float, accuracyColor: Int) {
         val active = state.active
-        val noteCenterY = centerY + radius * 0.06f
+        val noteCenterY = centerY + radius * 0.02f
+
+        if (!active) {
+            if (hintText.isNotEmpty()) {
+                smallPaint.color = withAlpha(colorMuted, 0.95f)
+                smallPaint.letterSpacing = 0f
+                smallPaint.textSize = sp(14f)
+                fitWidth(hintText, smallPaint, width * 0.80f, sp(10f))
+                drawCentered(canvas, hintText, centerX, noteCenterY, smallPaint)
+            }
+            return
+        }
 
         notePaint.textSize = radius * 0.68f
         notePaint.color = if (active) colorPrimary else withAlpha(colorPrimary, 0.35f)
@@ -255,7 +280,7 @@ class TunerGaugeView @JvmOverloads constructor(
             smallPaint.textSize = sp(13f)
             smallPaint.color = accuracyColor
             smallPaint.letterSpacing = 0.12f
-            drawCentered(canvas, formatCents(state.cents), centerX, centerY - radius * 0.56f, smallPaint)
+            drawCentered(canvas, formatCents(state.cents), centerX, centerY + radius * 0.47f, smallPaint)
             smallPaint.letterSpacing = 0f
 
             smallPaint.textSize = sp(13f)
@@ -265,13 +290,17 @@ class TunerGaugeView @JvmOverloads constructor(
             } else {
                 "${formatFrequency(state.frequency)} Hz"
             }
-            drawCentered(canvas, frequencyText, centerX, centerY + radius * 0.62f, smallPaint)
-        } else {
-            smallPaint.textSize = sp(14f)
-            smallPaint.color = withAlpha(colorMuted, 0.85f)
-            smallPaint.letterSpacing = 0.06f
-            drawCentered(canvas, hintText, centerX, centerY - radius * 0.56f, smallPaint)
-            smallPaint.letterSpacing = 0f
+            drawCentered(canvas, frequencyText, centerX, centerY + radius * 0.68f, smallPaint)
+        }
+    }
+
+    /** Shrinks the text until it fits in [maxWidth], never below [minSize]. */
+    private fun fitWidth(text: String, paint: Paint, maxWidth: Float, minSize: Float) {
+        var size = paint.textSize
+        val measured = paint.measureText(text)
+        if (measured > maxWidth && measured > 0f) {
+            size = (size * maxWidth / measured).coerceAtLeast(minSize)
+            paint.textSize = size
         }
     }
 
