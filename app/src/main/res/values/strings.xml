@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Afinador</string>
+
+    <string name="mode_chromatic">Cromático</string>
+    <string name="mode_guitar">Guitarra</string>
+
+    <string name="status_waiting">Esperando sonido</string>
+    <string name="status_listening">Escuchando</string>
+    <string name="status_no_mic">Sin micrófono</string>
+    <string name="status_mic_blocked">Micrófono bloqueado</string>
+
+    <string name="hint_idle">Acerca el micrófono al instrumento</string>
+    <string name="hint_need_permission">Concede el micrófono para empezar</string>
+    <string name="hint_enable_permission">Activa el micrófono en Ajustes y toca aquí</string>
+
+    <string name="reference_note">A4 = 440 Hz · temperamento igual</string>
+    <string name="tuning_chip_description">%1$s, cuerdas %2$s</string>
+    <string name="string_chip_description">Cuerda %1$s</string>
+</resources>
