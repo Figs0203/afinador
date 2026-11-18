@@ -6,6 +6,14 @@ import io.github.figs0203.afinador.music.Chords
 data class SheetLine(val text: String, val isChordLine: Boolean)
 
 /**
+ * A run of lines that must be laid out together. Tablature blocks keep their
+ * columns, so they are shown without wrapping; everything else wraps freely.
+ */
+data class SheetBlock(val lines: List<SheetLine>, val isTab: Boolean) {
+    val text: String get() = lines.joinToString("\n") { it.text }
+}
+
+/**
  * Turn a plain-text tab (Ultimate Guitar, CifraClub or pasted by hand) into
  * displayable lines, transposing chord lines only.
  *
@@ -26,6 +34,51 @@ object ChordSheet {
             SheetLine(if (chordLine) transposeLine(line, semitones) else line, chordLine)
         }
     }
+
+    /**
+     * Groups lines so the view can wrap prose while keeping tablature intact.
+     * Blank lines between two tab lines stay inside the block, because the same
+     * tab is often published as two stacked halves separated by an empty line.
+     */
+    fun blocks(lines: List<SheetLine>): List<SheetBlock> {
+        val result = mutableListOf<SheetBlock>()
+        var index = 0
+        while (index < lines.size) {
+            if (!isTabLine(lines[index].text)) {
+                val start = index
+                while (index < lines.size && !isTabLine(lines[index].text)) index++
+                result.add(SheetBlock(lines.subList(start, index), isTab = false))
+                continue
+            }
+
+            val start = index
+            var end = index + 1
+            var probe = index + 1
+            while (probe < lines.size) {
+                val line = lines[probe]
+                if (isTabLine(line.text)) {
+                    end = probe + 1
+                    probe++
+                    continue
+                }
+                if (line.text.isBlank()) {
+                    var next = probe
+                    while (next < lines.size && lines[next].text.isBlank()) next++
+                    if (next < lines.size && isTabLine(lines[next].text)) {
+                        probe = next
+                        continue
+                    }
+                }
+                break
+            }
+            result.add(SheetBlock(lines.subList(start, end), isTab = true))
+            index = end
+        }
+        return result
+    }
+
+    /** ASCII tablature line: runs of dashes, or a fret line such as "e|---3---|". */
+    fun isTabLine(line: String): Boolean = looksLikeTab(line.trim())
 
     /** Returns the capo fret declared in the sheet, if any (e.g. "Capo 2"). */
     fun capoOf(text: String): Int? {

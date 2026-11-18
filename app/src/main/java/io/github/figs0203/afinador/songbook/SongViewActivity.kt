@@ -8,6 +8,9 @@ import android.text.Spanned
 import android.text.style.ForegroundColorSpan
 import android.text.style.StyleSpan
 import android.view.View
+import android.view.ViewGroup
+import android.widget.HorizontalScrollView
+import android.widget.LinearLayout
 import android.widget.TextView
 import io.github.figs0203.afinador.R
 import io.github.figs0203.afinador.ui.applyEdgeToEdge
@@ -18,7 +21,7 @@ import io.github.figs0203.afinador.ui.applyEdgeToEdge
  */
 class SongViewActivity : Activity() {
 
-    private lateinit var sheet: TextView
+    private lateinit var sheet: LinearLayout
     private lateinit var transposeLabel: TextView
     private lateinit var transposeDown: TextView
     private lateinit var transposeUp: TextView
@@ -96,9 +99,22 @@ class SongViewActivity : Activity() {
 
     private fun render() {
         val current = song ?: return
-        val builder = SpannableStringBuilder()
+        sheet.removeAllViews()
+        ChordSheet.blocks(ChordSheet.render(current.text, semitones)).forEach { block ->
+            sheet.addView(
+                if (block.isTab) tabBlock(block) else textBlock(block),
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+            )
+        }
+    }
 
-        ChordSheet.render(current.text, semitones).forEach { line ->
+    /** Lyrics and chords wrap to the screen width. */
+    private fun textBlock(block: SheetBlock): View {
+        val builder = SpannableStringBuilder()
+        block.lines.forEach { line ->
             val start = builder.length
             builder.append(line.text)
             val end = builder.length
@@ -113,7 +129,39 @@ class SongViewActivity : Activity() {
             }
             builder.append('\n')
         }
-        sheet.text = builder
+        return sheetTextView().apply {
+            text = builder
+            setTextIsSelectable(true)
+        }
+    }
+
+    /**
+     * Tablature is a grid of six string lines and every column must stay under
+     * the fret it belongs to, so these lines are never wrapped: the block keeps
+     * its original layout and scrolls sideways when it is wider than the screen.
+     */
+    private fun tabBlock(block: SheetBlock): View {
+        val tab = sheetTextView().apply {
+            text = block.text
+            setHorizontallyScrolling(true)
+        }
+        return HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false
+            addView(
+                tab,
+                ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+            )
+        }
+    }
+
+    private fun sheetTextView() = TextView(this).apply {
+        typeface = Typeface.MONOSPACE
+        textSize = SHEET_TEXT_SP
+        setTextColor(getColor(R.color.text_primary))
+        setLineSpacing(dp(3).toFloat(), 1f)
     }
 
     private fun addToPlaylist(song: Song) {
@@ -163,6 +211,7 @@ class SongViewActivity : Activity() {
 
     companion object {
         const val EXTRA_SONG_ID = "io.github.figs0203.afinador.song_id"
+        private const val SHEET_TEXT_SP = 12f
         private const val MIN_SEMITONES = -11
         private const val MAX_SEMITONES = 11
     }

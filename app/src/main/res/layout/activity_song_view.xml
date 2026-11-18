@@ -131,17 +131,14 @@
         android:clipToPadding="false"
         android:scrollbars="none">
 
-        <TextView
+        <!-- Cada bloque se añade en código: el texto normal se ajusta al ancho
+             y las tablaturas se muestran sin partir líneas, desplazables. -->
+        <LinearLayout
             android:id="@+id/sheet"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:fontFamily="monospace"
-            android:lineSpacingExtra="3dp"
-            android:paddingBottom="48dp"
-            android:scrollHorizontally="false"
-            android:textColor="@color/text_primary"
-            android:textIsSelectable="true"
-            android:textSize="12sp" />
+            android:orientation="vertical"
+            android:paddingBottom="48dp" />
     </ScrollView>
 
     <TextView
