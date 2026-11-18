@@ -1,12 +1,14 @@
 package io.github.figs0203.afinador.songbook
 
 import android.app.Activity
+import android.graphics.Paint
 import android.graphics.Typeface
 import android.os.Bundle
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.style.ForegroundColorSpan
 import android.text.style.StyleSpan
+import android.util.TypedValue
 import android.view.View
 import android.view.ViewGroup
 import android.widget.HorizontalScrollView
@@ -77,6 +79,11 @@ class SongViewActivity : Activity() {
 
         updateTransposeLabel()
         render()
+        // The sheet is measured after the first pass, so the width used to wrap
+        // chords with their lyrics is only exact once the view has a size.
+        sheet.addOnLayoutChangeListener { _, left, _, right, _, oldLeft, _, oldRight, _ ->
+            if (right - left != oldRight - oldLeft) render()
+        }
     }
 
     private fun shift(delta: Int) = setTranspose((semitones + delta).coerceIn(MIN_SEMITONES, MAX_SEMITONES))
@@ -105,10 +112,11 @@ class SongViewActivity : Activity() {
 
     private fun render() {
         val current = song ?: return
+        val columns = sheetColumns()
         sheet.removeAllViews()
         ChordSheet.blocks(ChordSheet.render(current.text, semitones)).forEach { block ->
             sheet.addView(
-                if (block.isTab) tabBlock(block) else textBlock(block),
+                if (block.isTab) tabBlock(block) else textBlock(ChordSheet.wrap(block.lines, columns)),
                 LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT
@@ -117,10 +125,13 @@ class SongViewActivity : Activity() {
         }
     }
 
-    /** Lyrics and chords wrap to the screen width. */
-    private fun textBlock(block: SheetBlock): View {
+    /**
+     * Lyrics and chords wrap to the screen width. The lines arrive already cut
+     * to that width, pair by pair, so a chord row always stays above its lyrics.
+     */
+    private fun textBlock(lines: List<SheetLine>): View {
         val builder = SpannableStringBuilder()
-        block.lines.forEach { line ->
+        lines.forEach { line ->
             val start = builder.length
             builder.append(line.text)
             val end = builder.length
@@ -161,6 +172,22 @@ class SongViewActivity : Activity() {
                 )
             )
         }
+    }
+
+    /** Characters of the monospaced sheet that fit on one screen row. */
+    private fun sheetColumns(): Int {
+        val width = if (sheet.width > 0) sheet.width else resources.displayMetrics.widthPixels
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            typeface = Typeface.MONOSPACE
+            textSize = TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_SP,
+                SHEET_TEXT_SP,
+                resources.displayMetrics
+            )
+        }
+        val charWidth = paint.measureText("M")
+        if (charWidth <= 0f) return 0
+        return ((width - dp(4)) / charWidth).toInt()
     }
 
     private fun sheetTextView() = TextView(this).apply {

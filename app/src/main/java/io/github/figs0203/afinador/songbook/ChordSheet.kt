@@ -77,6 +77,154 @@ object ChordSheet {
         return result
     }
 
+    /**
+     * Breaks the sheet into lines that already fit [columns] characters, so a
+     * wrapped lyric keeps its chords above the syllables they belong to.
+     *
+     * A chord line and the lyric under it are cut at the same column; wrapping
+     * them separately (as a plain text view does) leaves a chord row over the
+     * wrong row of text whenever one of them is wider than the screen.
+     */
+    fun wrap(lines: List<SheetLine>, columns: Int): List<SheetLine> {
+        if (columns < 8) return lines
+        val result = mutableListOf<SheetLine>()
+        var index = 0
+        while (index < lines.size) {
+            val line = lines[index]
+            val next = lines.getOrNull(index + 1)
+            when {
+                line.isChordLine && next != null && !next.isChordLine && next.text.isNotBlank() -> {
+                    wrapPair(line.text, next.text, columns, result)
+                    index += 2
+                }
+
+                line.isChordLine -> {
+                    wrapChordLine(line.text, columns).forEach { result.add(SheetLine(it, true)) }
+                    index++
+                }
+
+                else -> {
+                    wrapText(line.text, columns).forEach { result.add(SheetLine(it, false)) }
+                    index++
+                }
+            }
+        }
+        return result
+    }
+
+    /** Cuts a chord line and its lyric in matching pieces, one pair per row. */
+    private fun wrapPair(
+        chord: String,
+        lyric: String,
+        columns: Int,
+        result: MutableList<SheetLine>
+    ) {
+        var chordRest = chord
+        var lyricRest = lyric
+
+        while (lyricRest.length > columns) {
+            val cut = cutFor(chordRest, lyricRest, columns)
+            addRow(result, chordRest.take(cut), lyricRest.take(cut))
+            chordRest = chordRest.drop(cut)
+            lyricRest = lyricRest.drop(cut)
+            // Both sides lose the same indentation, so the columns stay aligned.
+            val shift = minOf(chordRest.indentWidth(), lyricRest.indentWidth())
+            chordRest = chordRest.drop(shift)
+            lyricRest = lyricRest.drop(shift)
+        }
+
+        if (chordRest.isNotBlank()) {
+            wrapChordLine(chordRest, columns).forEach { result.add(SheetLine(it, true)) }
+        }
+        if (lyricRest.isNotEmpty() || result.isEmpty()) {
+            result.add(SheetLine(lyricRest, false))
+        }
+    }
+
+    /** Adds a row, skipping chord rows that only hold spaces left behind by the cut. */
+    private fun addRow(result: MutableList<SheetLine>, chord: String, lyric: String) {
+        if (chord.isNotBlank()) result.add(SheetLine(chord.trimEnd(), true))
+        result.add(SheetLine(lyric.trimEnd(), false))
+    }
+
+    /**
+     * Column where the pair should be cut: the last word gap of the lyric that
+     * fits, moved back when a chord name would be split in half.
+     */
+    private fun cutFor(chord: String, lyric: String, columns: Int): Int {
+        val ranges = chordRanges(chord)
+        for (index in minOf(columns, lyric.length - 1) downTo 2) {
+            if (!lyric[index - 1].isWhitespace()) continue
+            if (ranges.any { it.first < index && it.last + 1 > index }) continue
+            return index
+        }
+
+        val limit = minOf(columns, lyric.length)
+        val straddling = ranges.firstOrNull { it.first < limit && it.last + 1 > limit }
+        return when {
+            straddling == null -> limit
+            straddling.last + 1 <= columns -> straddling.last + 1
+            else -> straddling.first.coerceAtLeast(1)
+        }
+    }
+
+    /** Wraps a lyric line that has no chords above it. */
+    private fun wrapText(text: String, columns: Int): List<String> {
+        if (text.length <= columns) return listOf(text)
+        val pieces = mutableListOf<String>()
+        var rest = text
+        while (rest.length > columns) {
+            var cut = columns
+            while (cut > 1 && !rest[cut - 1].isWhitespace()) cut--
+            if (cut <= 1) cut = columns
+            pieces.add(rest.take(cut))
+            rest = rest.drop(cut)
+        }
+        if (rest.isNotEmpty()) pieces.add(rest)
+        return pieces
+    }
+
+    /** Wraps a chord line on its own, never splitting a chord name. */
+    private fun wrapChordLine(text: String, columns: Int): List<String> {
+        if (text.length <= columns) return listOf(text)
+        val pieces = mutableListOf<String>()
+        var rest = text
+        while (rest.length > columns) {
+            val ranges = chordRanges(rest)
+            var cut = 0
+            for (index in minOf(columns, rest.length - 1) downTo 2) {
+                if (!rest[index - 1].isWhitespace()) continue
+                if (ranges.any { it.first < index && it.last + 1 > index }) continue
+                cut = index
+                break
+            }
+            if (cut == 0) cut = columns
+            pieces.add(rest.take(cut))
+            rest = rest.drop(cut).trimStart()
+        }
+        if (rest.isNotEmpty()) pieces.add(rest)
+        return pieces
+    }
+
+    /** Start and end of every non-blank token in a chord line. */
+    private fun chordRanges(line: String): List<IntRange> {
+        val ranges = mutableListOf<IntRange>()
+        var index = 0
+        while (index < line.length) {
+            if (line[index].isWhitespace()) {
+                index++
+                continue
+            }
+            var end = index
+            while (end < line.length && !line[end].isWhitespace()) end++
+            ranges.add(index until end)
+            index = end
+        }
+        return ranges
+    }
+
+    private fun String.indentWidth(): Int = length - trimStart().length
+
     /** ASCII tablature line: runs of dashes, or a fret line such as "e|---3---|". */
     fun isTabLine(line: String): Boolean = looksLikeTab(line.trim())
 
