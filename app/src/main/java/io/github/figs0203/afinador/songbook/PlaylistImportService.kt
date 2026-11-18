@@ -8,7 +8,9 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import io.github.figs0203.afinador.R
 import io.github.figs0203.afinador.songbook.SongLibraryActivity
 
@@ -18,6 +20,9 @@ class PlaylistImportService : Service() {
         const val ACTION_START = "io.github.figs0203.afinador.action.START_PLAYLIST_IMPORT"
         const val EXTRA_URL = "playlist_url"
 
+        // Broadcast constants kept for backwards compatibility; progress is now
+        // delivered through [ProgressListener] because Android 14+ no longer
+        // delivers implicit broadcasts to non-exported receivers.
         const val BROADCAST_PROGRESS = "io.github.figs0203.afinador.PLAYLIST_IMPORT_PROGRESS"
         const val EXTRA_TOTAL = "total"
         const val EXTRA_CURRENT = "current"
@@ -30,6 +35,54 @@ class PlaylistImportService : Service() {
 
         private const val CHANNEL_ID = "playlist_import"
         private const val NOTIF_ID = 4242
+
+        interface ProgressListener {
+            fun onProgress(
+                done: Boolean,
+                total: Int,
+                current: Int,
+                title: String,
+                added: Int,
+                skipped: Int,
+                failed: Int,
+                error: String?
+            )
+        }
+
+        data class ProgressState(
+            val done: Boolean,
+            val total: Int,
+            val current: Int,
+            val title: String,
+            val added: Int,
+            val skipped: Int,
+            val failed: Int,
+            val error: String?
+        )
+
+        @Volatile
+        var progressListener: ProgressListener? = null
+
+        @Volatile
+        var lastProgress: ProgressState? = null
+
+        private val mainHandler = Handler(Looper.getMainLooper())
+
+        fun registerListener(listener: ProgressListener) {
+            progressListener = listener
+            lastProgress?.let { state ->
+                mainHandler.post {
+                    listener.onProgress(
+                        state.done, state.total, state.current, state.title,
+                        state.added, state.skipped, state.failed, state.error
+                    )
+                }
+            }
+        }
+
+        fun unregisterListener(listener: ProgressListener) {
+            if (progressListener === listener) progressListener = null
+        }
 
         fun start(context: Context, url: String) {
             val intent = Intent(context, PlaylistImportService::class.java).apply {
@@ -68,6 +121,11 @@ class PlaylistImportService : Service() {
             return START_NOT_STICKY
         }
         startForeground(NOTIF_ID, buildNotification("Preparando importación…", 0, 0, true))
+        reportProgress(
+            done = false, total = 0, current = 0,
+            title = getString(R.string.playlist_loading),
+            added = 0, skipped = 0, failed = 0, error = null
+        )
         Thread { runImport(url, startId) }.start()
         return START_NOT_STICKY
     }
@@ -77,11 +135,16 @@ class PlaylistImportService : Service() {
         var skipped = 0
         var failed = 0
         try {
+            updateNotification(getString(R.string.playlist_loading), 0, 0, true)
             val playlist = PlaylistImporter.importFromUrl(url)
             val total = playlist.entries.size
             if (total == 0) {
-                broadcast(done = true, added = 0, skipped = 0, failed = 0, error = getString(R.string.playlist_empty))
-                notifyFinal(getString(R.string.playlist_empty))
+                val err = getString(R.string.playlist_empty)
+                reportProgress(
+                    done = true, total = 0, current = 0, title = "",
+                    added = 0, skipped = 0, failed = 0, error = err
+                )
+                notifyFinal(err)
                 return
             }
 
@@ -93,14 +156,11 @@ class PlaylistImportService : Service() {
                 val current = index + 1
                 val msg = getString(R.string.playlist_progress, current, total, entry.title)
                 updateNotification(msg, current, total, false)
-                broadcast(
-                    done = false,
-                    total = total,
-                    current = current,
+                reportProgress(
+                    done = false, total = total, current = current,
                     title = entry.title,
-                    added = songs.size,
-                    skipped = skipped,
-                    failed = failed
+                    added = songs.size, skipped = skipped, failed = failed,
+                    error = null
                 )
 
                 if (!knownLinks.add(entry.url)) {
@@ -132,38 +192,41 @@ class PlaylistImportService : Service() {
             added = songs.size
 
             val summary = buildSummary(added, skipped, failed)
-            broadcast(done = true, total = total, current = total, title = "", added = added, skipped = skipped, failed = failed, error = null)
+            reportProgress(
+                done = true, total = total, current = total, title = "",
+                added = added, skipped = skipped, failed = failed, error = null
+            )
             notifyFinal(summary)
         } catch (e: Exception) {
             val err = e.message ?: getString(R.string.playlist_failed)
-            broadcast(done = true, total = 0, current = 0, title = "", added = 0, skipped = 0, failed = 0, error = err)
+            reportProgress(
+                done = true, total = 0, current = 0, title = "",
+                added = 0, skipped = 0, failed = 0, error = err
+            )
             notifyFinal(err)
         } finally {
             stopSelf(startId)
         }
     }
 
-    private fun broadcast(
+    private fun reportProgress(
         done: Boolean,
-        total: Int = 0,
-        current: Int = 0,
-        title: String = "",
-        added: Int = 0,
-        skipped: Int = 0,
-        failed: Int = 0,
-        error: String? = null
+        total: Int,
+        current: Int,
+        title: String,
+        added: Int,
+        skipped: Int,
+        failed: Int,
+        error: String?
     ) {
-        val intent = Intent(BROADCAST_PROGRESS).apply {
-            putExtra(EXTRA_DONE, done)
-            putExtra(EXTRA_TOTAL, total)
-            putExtra(EXTRA_CURRENT, current)
-            putExtra(EXTRA_TITLE, title)
-            putExtra(EXTRA_ADDED, added)
-            putExtra(EXTRA_SKIPPED, skipped)
-            putExtra(EXTRA_FAILED, failed)
-            if (error != null) putExtra(EXTRA_ERROR, error)
+        val state = ProgressState(done, total, current, title, added, skipped, failed, error)
+        lastProgress = state
+        val listener = progressListener
+        if (listener != null) {
+            mainHandler.post {
+                listener.onProgress(done, total, current, title, added, skipped, failed, error)
+            }
         }
-        sendBroadcast(intent)
     }
 
     private fun notificationBuilder(text: String, icon: Int): Notification.Builder {
@@ -211,7 +274,6 @@ class PlaylistImportService : Service() {
         )
         builder.setContentIntent(pending)
         notificationManager?.notify(NOTIF_ID, builder.build())
-        // Remove foreground state but keep the final notification.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             stopForeground(STOP_FOREGROUND_DETACH)
         } else {

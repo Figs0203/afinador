@@ -2,10 +2,9 @@ package io.github.figs0203.afinador.songbook
 
 import android.app.Activity
 import android.app.AlertDialog
-import android.content.BroadcastReceiver
-import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
 import android.content.Intent
-import android.content.IntentFilter
 import android.os.Bundle
 import android.view.View
 import android.widget.EditText
@@ -26,7 +25,7 @@ import java.util.UUID
  * Ultimate Guitar playlists also arrive as links: their list of songs is read
  * first, confirmed by the user, and then each tab is imported in order.
  */
-class ImportActivity : Activity() {
+class ImportActivity : Activity(), PlaylistImportService.Companion.ProgressListener {
 
     private lateinit var urlInput: EditText
     private lateinit var titleInput: EditText
@@ -37,29 +36,29 @@ class ImportActivity : Activity() {
     private val store by lazy { SongStore(this) }
     private var currentPlaylistUrl: String? = null
 
-    private val progressReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            val done = intent.getBooleanExtra(PlaylistImportService.EXTRA_DONE, false)
-            val total = intent.getIntExtra(PlaylistImportService.EXTRA_TOTAL, 0)
-            val current = intent.getIntExtra(PlaylistImportService.EXTRA_CURRENT, 0)
-            val title = intent.getStringExtra(PlaylistImportService.EXTRA_TITLE).orEmpty()
-            val added = intent.getIntExtra(PlaylistImportService.EXTRA_ADDED, 0)
-            val skipped = intent.getIntExtra(PlaylistImportService.EXTRA_SKIPPED, 0)
-            val failed = intent.getIntExtra(PlaylistImportService.EXTRA_FAILED, 0)
-            val error = intent.getStringExtra(PlaylistImportService.EXTRA_ERROR)
-
-            if (isFinishing) return
-            if (!done) {
-                if (total > 0) {
-                    showMessage(getString(R.string.playlist_progress, current, total, title), false)
-                }
+    override fun onProgress(
+        done: Boolean,
+        total: Int,
+        current: Int,
+        title: String,
+        added: Int,
+        skipped: Int,
+        failed: Int,
+        error: String?
+    ) {
+        if (isFinishing) return
+        if (!done) {
+            if (total > 0) {
+                showMessage(getString(R.string.playlist_progress, current, total, title), false)
             } else {
-                setBusy(false)
-                if (error != null) {
-                    showMessage(error, true)
-                } else {
-                    finishPlaylist(added, skipped, failed)
-                }
+                showMessage(title.ifBlank { getString(R.string.playlist_loading) }, false)
+            }
+        } else {
+            setBusy(false)
+            if (error != null) {
+                showMessage(error, true)
+            } else {
+                finishPlaylist(added, skipped, failed)
             }
         }
     }
@@ -80,17 +79,19 @@ class ImportActivity : Activity() {
         linkButton.setOnClickListener { importLink() }
         saveButton.setOnClickListener { savePasted() }
 
-        registerReceiver(
-            progressReceiver,
-            IntentFilter(PlaylistImportService.BROADCAST_PROGRESS),
-            Context.RECEIVER_NOT_EXPORTED
-        )
+        PlaylistImportService.registerListener(this)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1001)
+        }
 
         handleIntent(intent)
     }
 
     override fun onDestroy() {
-        runCatching { unregisterReceiver(progressReceiver) }
+        PlaylistImportService.unregisterListener(this)
         super.onDestroy()
     }
 
