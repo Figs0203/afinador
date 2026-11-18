@@ -2,7 +2,10 @@ package io.github.figs0203.afinador.songbook
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.os.Bundle
 import android.view.View
 import android.widget.EditText
@@ -32,6 +35,34 @@ class ImportActivity : Activity() {
     private lateinit var linkButton: TextView
     private lateinit var saveButton: TextView
     private val store by lazy { SongStore(this) }
+    private var currentPlaylistUrl: String? = null
+
+    private val progressReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val done = intent.getBooleanExtra(PlaylistImportService.EXTRA_DONE, false)
+            val total = intent.getIntExtra(PlaylistImportService.EXTRA_TOTAL, 0)
+            val current = intent.getIntExtra(PlaylistImportService.EXTRA_CURRENT, 0)
+            val title = intent.getStringExtra(PlaylistImportService.EXTRA_TITLE).orEmpty()
+            val added = intent.getIntExtra(PlaylistImportService.EXTRA_ADDED, 0)
+            val skipped = intent.getIntExtra(PlaylistImportService.EXTRA_SKIPPED, 0)
+            val failed = intent.getIntExtra(PlaylistImportService.EXTRA_FAILED, 0)
+            val error = intent.getStringExtra(PlaylistImportService.EXTRA_ERROR)
+
+            if (isFinishing) return
+            if (!done) {
+                if (total > 0) {
+                    showMessage(getString(R.string.playlist_progress, current, total, title), false)
+                }
+            } else {
+                setBusy(false)
+                if (error != null) {
+                    showMessage(error, true)
+                } else {
+                    finishPlaylist(added, skipped, failed)
+                }
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,7 +80,14 @@ class ImportActivity : Activity() {
         linkButton.setOnClickListener { importLink() }
         saveButton.setOnClickListener { savePasted() }
 
+        registerReceiver(progressReceiver, IntentFilter(PlaylistImportService.BROADCAST_PROGRESS))
+
         handleIntent(intent)
+    }
+
+    override fun onDestroy() {
+        runCatching { unregisterReceiver(progressReceiver) }
+        super.onDestroy()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -119,6 +157,7 @@ class ImportActivity : Activity() {
     // --------------------------------------------------------- playlists
 
     private fun readPlaylist(url: String) {
+        currentPlaylistUrl = url
         setBusy(true)
         showMessage(getString(R.string.playlist_loading), false)
         Thread {
@@ -156,54 +195,14 @@ class ImportActivity : Activity() {
     /** Downloads every tab of the list, one by one, keeping only its text. */
     private fun importPlaylist(playlist: PlaylistImporter.Playlist) {
         setBusy(true)
-        val total = playlist.entries.size
-
-        Thread {
-            val knownLinks = store.all().mapNotNull { it.url }.toMutableSet()
-            val songs = mutableListOf<Song>()
-            var skipped = 0
-            var failed = 0
-
-            playlist.entries.forEachIndexed { index, entry ->
-                if (!knownLinks.add(entry.url)) {
-                    skipped++
-                    return@forEachIndexed
-                }
-
-                runOnUiThread {
-                    if (!isFinishing) {
-                        showMessage(
-                            getString(R.string.playlist_progress, index + 1, total, entry.title),
-                            false
-                        )
-                    }
-                }
-
-                val imported = runCatching { SongImporter.importFromUrl(entry.url) }.getOrNull()
-                if (imported == null) {
-                    failed++
-                    return@forEachIndexed
-                }
-
-                songs.add(
-                    Song(
-                        id = UUID.randomUUID().toString(),
-                        title = imported.title.ifBlank { entry.title }
-                            .ifBlank { getString(R.string.song_unknown_title) }.take(120),
-                        artist = imported.artist.ifBlank { entry.artist }.take(120),
-                        source = SongImporter.labelFor(entry.url),
-                        url = entry.url,
-                        text = imported.text,
-                        savedAt = System.currentTimeMillis()
-                    )
-                )
-            }
-
-            store.addAll(songs)
-            runOnUiThread {
-                if (!isFinishing) finishPlaylist(songs.size, skipped, failed)
-            }
-        }.start()
+        val url = currentPlaylistUrl
+        if (url.isNullOrBlank()) {
+            setBusy(false)
+            showMessage(getString(R.string.playlist_failed), true)
+            return
+        }
+        showMessage(getString(R.string.playlist_loading), false)
+        PlaylistImportService.start(this, url)
     }
 
     private fun finishPlaylist(added: Int, skipped: Int, failed: Int) {

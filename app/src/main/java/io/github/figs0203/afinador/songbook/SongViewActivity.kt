@@ -57,7 +57,13 @@ class SongViewActivity : Activity() {
         semitones = current.transposeSemitones
         titleView.text = current.title
         artistView.text = current.artist.ifBlank { getString(R.string.song_empty_artist) }
-        sourceView.text = getString(R.string.song_source, current.source)
+        val capo = ChordSheet.capoOf(current.text)
+        sourceView.text = if (capo == null) {
+            getString(R.string.song_source, current.source)
+        } else {
+            getString(R.string.song_source, current.source) + "  ·  " +
+                getString(R.string.song_capo, capo)
+        }
 
         transposeDown.setOnClickListener { shift(-1) }
         transposeUp.setOnClickListener { shift(1) }

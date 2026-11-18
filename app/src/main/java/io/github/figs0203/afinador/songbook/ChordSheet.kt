@@ -27,6 +27,12 @@ object ChordSheet {
         }
     }
 
+    /** Returns the capo fret declared in the sheet, if any (e.g. "Capo 2"). */
+    fun capoOf(text: String): Int? {
+        val match = Regex("(?i)(?:capo|capotraste)\\D{0,12}(\\d+)").find(text)
+        return match?.groupValues?.get(1)?.toIntOrNull()
+    }
+
     fun isChordLine(line: String): Boolean {
         val trimmed = line.trim()
         if (trimmed.isEmpty() || trimmed.length > 120) return false
