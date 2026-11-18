@@ -82,7 +82,7 @@ class SongViewActivity : Activity() {
         // The sheet is measured after the first pass, so the width used to wrap
         // chords with their lyrics is only exact once the view has a size.
         sheet.addOnLayoutChangeListener { _, left, _, right, _, oldLeft, _, oldRight, _ ->
-            if (right - left != oldRight - oldLeft) render()
+            if (right - left != oldRight - oldLeft) sheet.post { render() }
         }
     }
 
@@ -112,9 +112,11 @@ class SongViewActivity : Activity() {
 
     private fun render() {
         val current = song ?: return
+        val rendered = ChordSheet.render(current.text, semitones)
+        val blocks = ChordSheet.blocks(rendered)
         val columns = sheetColumns()
         sheet.removeAllViews()
-        ChordSheet.blocks(ChordSheet.render(current.text, semitones)).forEach { block ->
+        blocks.forEach { block ->
             sheet.addView(
                 if (block.isTab) tabBlock(block) else textBlock(ChordSheet.wrap(block.lines, columns)),
                 LinearLayout.LayoutParams(
