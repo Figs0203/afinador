@@ -1,6 +1,6 @@
-# Afinador
+# Afinador · Cancionero
 
-Afinador de instrumentos para Android. Escucha el micrófono, detecta la altura del
+Afinador de instrumentos para Android con cancionero. Escucha el micrófono, detecta la altura del
 sonido y muestra **la nota más cercana** con su desviación exacta en cents, tanto si
 es una de las cuerdas de la guitarra como si no.
 

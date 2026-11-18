@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Afinador</string>
+    <string name="app_name">Afinador · Cancionero</string>
+    <!-- Título corto de la cabecera: comparte fila con el estado y el botón del cancionero. -->
+    <string name="app_title">Afinador</string>
 
     <string name="mode_chromatic">Cromático</string>
     <string name="mode_guitar">Guitarra</string>
