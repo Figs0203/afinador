@@ -3,7 +3,12 @@ package io.github.figs0203.afinador.songbook
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.View
+import android.widget.EditText
+import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import io.github.figs0203.afinador.R
 import io.github.figs0203.afinador.ui.applyEdgeToEdge
@@ -14,11 +19,23 @@ import io.github.figs0203.afinador.ui.applyEdgeToEdge
  */
 class SongLibraryActivity : Activity() {
 
-    private lateinit var songList: android.widget.LinearLayout
+    private lateinit var songList: LinearLayout
+    private lateinit var scrollView: ScrollView
     private lateinit var subtitle: TextView
+    private lateinit var searchInput: EditText
+    private lateinit var sortArrival: TextView
+    private lateinit var sortAlpha: TextView
+    private lateinit var sortArtist: TextView
+    private lateinit var alphaSidebar: LinearLayout
+
     private val store by lazy { SongStore(this) }
     private val playlistStore by lazy { PlaylistStore(this) }
     private val density by lazy { resources.displayMetrics.density }
+
+    private var currentSort: String = "arrival"
+    private var currentQuery: String = ""
+    private var sortedSongs: List<Song> = emptyList()
+    private var rowViews: List<View> = emptyList()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -26,7 +43,13 @@ class SongLibraryActivity : Activity() {
         applyEdgeToEdge(findViewById(R.id.root))
 
         songList = findViewById(R.id.songList)
+        scrollView = findViewById(R.id.songScrollView)
         subtitle = findViewById(R.id.librarySubtitle)
+        searchInput = findViewById(R.id.searchInput)
+        sortArrival = findViewById(R.id.sortArrival)
+        sortAlpha = findViewById(R.id.sortAlpha)
+        sortArtist = findViewById(R.id.sortArtist)
+        alphaSidebar = findViewById(R.id.alphaSidebar)
 
         findViewById<View>(R.id.backButton).setOnClickListener { finish() }
         findViewById<View>(R.id.importButton).setOnClickListener {
@@ -35,6 +58,22 @@ class SongLibraryActivity : Activity() {
         findViewById<View>(R.id.playlistsButton).setOnClickListener {
             startActivity(Intent(this, PlaylistsActivity::class.java))
         }
+
+        sortArrival.setOnClickListener { setSort("arrival") }
+        sortAlpha.setOnClickListener { setSort("alpha") }
+        sortArtist.setOnClickListener { setSort("artist") }
+
+        searchInput.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                currentQuery = s?.toString().orEmpty()
+                refresh()
+            }
+        })
+
+        buildAlphaSidebar()
+        updateSortChips()
     }
 
     override fun onResume() {
@@ -42,24 +81,88 @@ class SongLibraryActivity : Activity() {
         refresh()
     }
 
+    private fun setSort(mode: String) {
+        currentSort = mode
+        updateSortChips()
+        refresh()
+    }
+
+    private fun updateSortChips() {
+        val selected = getColor(R.color.accent)
+        val normal = getColor(R.color.text_secondary)
+        sortArrival.setTextColor(if (currentSort == "arrival") selected else normal)
+        sortAlpha.setTextColor(if (currentSort == "alpha") selected else normal)
+        sortArtist.setTextColor(if (currentSort == "artist") selected else normal)
+    }
+
     private fun refresh() {
-        val songs = store.all()
-        songList.removeAllViews()
-        subtitle.text = if (songs.isEmpty()) {
-            getString(R.string.songbook_subtitle)
+        val all = store.all()
+        val filtered = if (currentQuery.isBlank()) {
+            all
         } else {
-            getString(R.string.songbook_count, songs.size)
+            all.filter {
+                it.title.contains(currentQuery, ignoreCase = true) ||
+                    it.artist.contains(currentQuery, ignoreCase = true)
+            }
+        }
+        sortedSongs = when (currentSort) {
+            "alpha" -> filtered.sortedBy { it.title.lowercase() }
+            "artist" -> filtered.sortedBy { it.artist.lowercase().ifBlank { "zzz" } }
+            else -> filtered // arrival: newest first, as stored
         }
 
-        if (songs.isEmpty()) {
+        songList.removeAllViews()
+        subtitle.text = if (all.isEmpty()) {
+            getString(R.string.songbook_subtitle)
+        } else {
+            getString(R.string.songbook_count, all.size)
+        }
+
+        if (sortedSongs.isEmpty()) {
             songList.addView(emptyHint())
+            rowViews = emptyList()
             return
         }
 
-        songs.forEachIndexed { index, song ->
+        val rows = mutableListOf<View>()
+        sortedSongs.forEachIndexed { index, song ->
             if (index > 0) songList.addView(divider())
-            songList.addView(songRow(song))
+            val row = songRow(song)
+            songList.addView(row)
+            rows.add(row)
         }
+        rowViews = rows
+    }
+
+    private fun buildAlphaSidebar() {
+        alphaSidebar.removeAllViews()
+        val letters = ('A'..'Z').map { it.toString() }
+        letters.forEach { letter ->
+            val tv = TextView(this).apply {
+                text = letter
+                textSize = 10f
+                gravity = android.view.Gravity.CENTER
+                setTextColor(getColor(R.color.text_secondary))
+                setPadding(0, 0, 0, 0)
+                isClickable = true
+                isFocusable = true
+                setOnClickListener { jumpToLetter(letter) }
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    0,
+                    1f
+                )
+            }
+            alphaSidebar.addView(tv)
+        }
+    }
+
+    private fun jumpToLetter(letter: String) {
+        val index = sortedSongs.indexOfFirst {
+            it.title.trim().uppercase().startsWith(letter)
+        }
+        if (index < 0 || index >= rowViews.size) return
+        scrollView.smoothScrollTo(0, rowViews[index].top)
     }
 
     private fun emptyHint(): View = TextView(this).apply {
@@ -73,15 +176,15 @@ class SongLibraryActivity : Activity() {
 
     private fun divider(): View = View(this).apply {
         setBackgroundColor(getColor(R.color.stroke))
-        layoutParams = android.widget.LinearLayout.LayoutParams(
-            android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+        layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
             dp(1)
         )
     }
 
     private fun songRow(song: Song): View {
-        val row = android.widget.LinearLayout(this).apply {
-            orientation = android.widget.LinearLayout.HORIZONTAL
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
             gravity = android.view.Gravity.CENTER_VERTICAL
             setPadding(0, dp(13), 0, dp(13))
             isClickable = true
@@ -89,8 +192,8 @@ class SongLibraryActivity : Activity() {
             setOnClickListener { open(song) }
         }
 
-        val texts = android.widget.LinearLayout(this).apply {
-            orientation = android.widget.LinearLayout.VERTICAL
+        val texts = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
         }
         texts.addView(TextView(this).apply {
             text = song.title
@@ -112,9 +215,9 @@ class SongLibraryActivity : Activity() {
 
         row.addView(
             texts,
-            android.widget.LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams(
                 0,
-                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
                 1f
             )
         )

@@ -60,7 +60,7 @@ class SongStore(context: Context) {
 
     fun add(song: Song) = synchronized(lock) {
         val songs = read().toMutableList()
-        songs.removeAll { it.id == song.id }
+        songs.removeAll { it.id == song.id || (song.url != null && it.url == song.url) }
         songs.add(0, song)
         write(songs)
     }

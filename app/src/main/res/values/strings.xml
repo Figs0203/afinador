@@ -30,6 +30,10 @@
     <string name="songbook_delete_message">Se quitará «%1$s» de este teléfono. La página original no se modifica.</string>
     <string name="songbook_delete_confirm">Eliminar</string>
     <string name="songbook_cancel">Cancelar</string>
+    <string name="songbook_search_hint">Buscar canción o artista…</string>
+    <string name="songbook_sort_arrival">Llegada</string>
+    <string name="songbook_sort_alpha">A-Z</string>
+    <string name="songbook_sort_artist">Artista</string>
     <string name="songbook_empty">Aún no hay canciones.\n\nComparte una página de Ultimate Guitar o CifraClub con el botón Compartir del navegador, o pega el texto desde Importar.</string>
 
     <string name="song_back">Volver</string>
