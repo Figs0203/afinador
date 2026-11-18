@@ -20,7 +20,7 @@ object PlaylistImporter {
 
     data class Playlist(val name: String, val entries: List<Entry>)
 
-    private val DATA_CONTENT = Regex("(?is)data-content=\"([^\"]{2,8000000})\"")
+    private val DATA_CONTENT = Regex("(?is)data-content=\"([^\"]+)\"")
 
     /** A playlist is never worth downloading thousands of tabs for. */
     private const val MAX_ENTRIES = 300

@@ -26,7 +26,7 @@ object SongImporter {
     data class Imported(val title: String, val artist: String, val text: String)
 
     private val PRE_BLOCK = Regex("(?is)<pre[^>]*>(.*?)</pre>")
-    private val DATA_CONTENT = Regex("(?is)data-content=\"([^\"]{2,400000})\"")
+    private val DATA_CONTENT = Regex("(?is)data-content=\"([^\"]+)\"")
     private val META_TITLE = Regex("(?is)<meta[^>]+property=[\"']og:title[\"'][^>]*>")
     private val META_TITLE_CONTENT = Regex("(?i)content=[\"']([^\"']+)[\"']")
     private val DOC_TITLE = Regex("(?is)<title[^>]*>(.*?)</title>")
