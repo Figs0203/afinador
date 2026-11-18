@@ -17,4 +17,58 @@
     <string name="reference_note">A4 = 440 Hz · temperamento igual</string>
     <string name="tuning_chip_description">%1$s, cuerdas %2$s</string>
     <string name="string_chip_description">Cuerda %1$s</string>
+
+    <!-- Cancionero -->
+    <string name="songbook_title">Cancionero</string>
+    <string name="songbook_subtitle">Acordes y tablaturas sin anuncios</string>
+    <string name="songbook_count">%1$d canciones guardadas</string>
+    <string name="songbook_import">Importar</string>
+    <string name="songbook_delete">Eliminar</string>
+    <string name="songbook_delete_title">¿Eliminar canción?</string>
+    <string name="songbook_delete_message">Se quitará «%1$s» de este teléfono. La página original no se modifica.</string>
+    <string name="songbook_delete_confirm">Eliminar</string>
+    <string name="songbook_cancel">Cancelar</string>
+    <string name="songbook_empty">Aún no hay canciones.\n\nComparte una página de Ultimate Guitar o CifraClub con el botón Compartir del navegador, o pega el texto desde Importar.</string>
+
+    <string name="song_back">Volver</string>
+    <string name="song_empty_artist">Artista desconocido</string>
+    <string name="song_unknown_title">Sin título</string>
+    <string name="song_source">Fuente: %1$s</string>
+    <string name="song_source_text">Texto pegado</string>
+    <string name="song_transpose_original">Tono original</string>
+    <string name="song_transpose_up_value">Tono +%1$d</string>
+    <string name="song_transpose_down_value">Tono −%1$d</string>
+    <string name="song_transpose_up">Subir medio tono</string>
+    <string name="song_transpose_down">Bajar medio tono</string>
+    <string name="song_transpose_reset">Volver al tono original</string>
+
+    <string name="import_title">Importar canción</string>
+    <string name="import_link_label">Enlace de la canción o de una lista</string>
+    <string name="import_link_hint">tabs.ultimate-guitar.com/… o cifraclub.com.br/…</string>
+    <string name="import_link_action">Importar enlace</string>
+    <string name="import_paste_separator">o pega la tablatura</string>
+    <string name="import_title_hint">Título (opcional)</string>
+    <string name="import_paste_hint">Pega aquí el texto de la tablatura o de los acordes</string>
+    <string name="import_save_action">Guardar en el cancionero</string>
+    <string name="import_downloading">Descargando la página…</string>
+    <string name="import_need_link">Escribe o pega un enlace</string>
+    <string name="import_invalid_link">El enlace no parece válido</string>
+    <string name="import_need_text">Pega la tablatura o los acordes antes de guardar</string>
+    <string name="import_text_received">Texto recibido. Revisa el título y guárdalo.</string>
+    <string name="import_failed">No se pudo importar la canción</string>
+    <string name="import_free_note">Se guarda solo el texto en tu teléfono. Para uso personal.</string>
+
+    <string name="playlist_loading">Leyendo la lista…</string>
+    <string name="playlist_confirm_title">Importar lista</string>
+    <string name="playlist_confirm_message">«%1$s» · %2$d canciones.\n\nSe descargará el texto de cada tablatura y se guardará en tu teléfono.</string>
+    <string name="playlist_confirm_action">Importar lista</string>
+    <string name="playlist_default_name">Lista de Ultimate Guitar</string>
+    <string name="playlist_progress">Importando %1$d de %2$d · %3$s</string>
+    <string name="playlist_empty">La lista no tiene canciones.</string>
+    <string name="playlist_failed">No se pudo leer la lista</string>
+    <string name="playlist_summary_added">%1$d canciones añadidas</string>
+    <string name="playlist_summary_skipped">%1$d ya estaban</string>
+    <string name="playlist_summary_skipped_one">%1$d ya estaba</string>
+    <string name="playlist_summary_failed">%1$d no se pudieron leer</string>
+    <string name="playlist_summary_failed_one">%1$d no se pudo leer</string>
 </resources>

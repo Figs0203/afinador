@@ -5,7 +5,7 @@ sonido y muestra **la nota más cercana** con su desviación exacta en cents, ta
 es una de las cuerdas de la guitarra como si no.
 
 Interfaz oscura, sin anuncios, sin cuentas, sin telemetría y funciona sin conexión.
-Solo pide un permiso: el micrófono.
+Solo pide dos permisos: el micrófono y, únicamente para importar un enlace, internet.
 
 ## Características
 
@@ -20,6 +20,9 @@ Solo pide un permiso: el micrófono.
 - **Detección estable** — mediana móvil y suavizado para que la aguja no salte, con
   puerta de ruido para ignorar el silencio y el ruido de fondo.
 - **Pantalla siempre encendida** mientras el afinador está abierto.
+- **Cancionero** — guarda tablaturas y páginas de acordes de Ultimate Guitar y
+  CifraClub y las muestra como texto limpio, sin anuncios, con el tono desplazable
+  de medio en medio tono.
 
 ## Capturas
 
@@ -47,6 +50,50 @@ Requiere Android 6.0 (API 23) o superior. Tamaño del APK: ~90 KB.
   izquierda significa que estás grave; a la derecha, agudo. Verde = afinado.
 - **Guitarra**: elige la afinación arriba y toca las cuerdas una por una. La cuerda
   objetivo se resalta y la nota grande es la que debes afinar.
+- **Cancionero**: toca el botón *Cancionero* de la cabecera. Dentro puedes importar
+  con el botón *Importar*, y desde el visor mover el tono con **−** y **+** (o tocar
+  el centro para volver al original). La transposición se recuerda por canción.
+
+## Cancionero
+
+El cancionero lee el texto de la tablatura, nunca la página web, así que no hay
+anuncios, scripts ni rastreadores. Hay cuatro formas de añadir una canción:
+
+1. **Compartir desde el navegador o la app**: elige *Compartir* en la página y luego
+   *Afinador*. La app descarga la página, extrae el texto y lo abre.
+2. **Enlace directo**: pega la URL en *Importar enlace*. También funciona si abres un
+   enlace de esos dos sitios con Afinador (el sistema pregunta con qué app abrirlo).
+3. **Pegar el texto**: si la página no se puede leer (muro de pago, captcha,
+   protección anti-bots o un cambio de diseño), copia el texto de la tablatura y
+   pégalo en el mismo formulario. Esta vía funciona sin conexión y es la más fiable a
+   largo plazo.
+4. **Lista de Ultimate Guitar**: pega (o abre) el enlace de una lista compartida,
+   `www.ultimate-guitar.com/playlist/shared/…`. La app lee el nombre de la lista y
+   sus canciones, pide confirmación y descarga cada tablatura una detrás de otra.
+   Las que ya estaban guardadas se saltan, así que volver a importar la lista no
+   duplica nada, y las que no se pueden leer se cuentan al final.
+
+La descarga directa funciona con Ultimate Guitar. CifraClub publica las cifras en HTML
+renderizado en servidor (un `<pre>` con las líneas en `<div>` y los acordes en `<b>`),
+pero su CDN responde **403 Access Denied** a cualquier cliente que no sea un navegador
+real — también con cabeceras de Chrome y `--http2` —, así que en ese sitio la app avisa
+y propone pegar el texto. Ver *Verificar la importación* más abajo.
+
+Las listas se leen del JSON que la propia página de Ultimate Guitar lleva en
+`data-content`: ahí vienen el nombre de la lista y el título, el artista y el enlace de
+cada canción, sin necesidad de cuenta ni de navegador. Solo se admiten listas
+compartidas públicamente; las privadas piden sesión y no se descargan. Las tablaturas
+personales que un autor incluya en su lista tampoco se pueden leer sin su cuenta, y se
+cuentan como fallo en el resumen.
+
+Se guarda **solo el texto** en el almacenamiento privado de la app, para uso personal.
+Las canciones se pueden borrar desde la lista con el aspa **✕**.
+
+La transposición solo toca los acordes: detecta las líneas de acordes por contenido
+(nunca por posición), conserva las columnas para que cada acorde siga sobre su sílaba
+y deja intactas las líneas de tablatura ASCII. Los acordes escritos con bemol siguen
+con bemol, los escritos con sostenido con sostenido, y los naturales usan sostenidos
+al subir y bemoles al bajar.
 
 ## Afinaciones incluidas
 
@@ -84,6 +131,35 @@ keyPassword=…
 Si ese archivo no existe, el build de release usa la clave de depuración para que el
 proyecto compile igualmente.
 
+## Verificar la importación
+
+La extracción se prueba de dos formas: con tests de JVM sobre HTML de ejemplo (rápidos,
+sin red) y contra páginas reales descargadas, ejecutando el mismo `SongImporter`:
+
+```bash
+# 1. Descargar una página real (Ultimate Guitar responde 200 a curl)
+curl -sL --compressed -A "Mozilla/5.0 (Linux; Android 13) Chrome/122 Mobile" \
+  -o build/live-samples/ug-chords.html \
+  "https://tabs.ultimate-guitar.com/tab/oasis/wonderwall-chords-27596"
+
+# y una lista compartida
+curl -sL --compressed -A "Mozilla/5.0 (Linux; Android 13) Chrome/122 Mobile" \
+  -o build/live-samples/ug-playlist.html \
+  "https://www.ultimate-guitar.com/playlist/shared/vy6zwyg6w3zx"
+
+# 2. Pasar el HTML por el extractor real y comprobar líneas de acordes
+./gradlew :app:testDebugUnitTest --tests "*LiveExtractionCheck"
+```
+
+Comprobado así con `wonderwall-chords-27596`: 131 líneas, 48 de acordes, título y
+artista correctos, tablatura intacta y transposición alineada; con el `<pre>` eliminado
+del HTML, el respaldo JSON (`data-content`) da exactamente el mismo texto. La lista de
+prueba (`vy6zwyg6w3zx`) devuelve 62 canciones en orden, sin enlaces repetidos y con
+título y artista en todas. En CifraClub
+se validó el texto real de la página (90 líneas, 10 de acordes, 44 de tablatura sin
+cambios) porque la descarga HTTP está bloqueada; si añades canciones de otros sitios,
+repite esta comprobación antes de darla por buena.
+
 ## Cómo funciona
 
 El pipeline es deliberadamente corto y sin dependencias externas:
@@ -108,13 +184,22 @@ Rango de detección: 55 Hz – 1600 Hz. Ventana de análisis: 4096 muestras (~93
 
 ```
 app/src/main/java/io/github/figs0203/afinador/
-├── MainActivity.kt          interfaz, modos, permisos y estabilización
-├── audio/AudioEngine.kt     captura de micrófono y bucle de análisis
-├── dsp/PitchDetector.kt     YIN (Kotlin puro, testeable en JVM)
-├── music/Music.kt           frecuencia ↔ nota, cents
-├── music/Tunings.kt         afinaciones y cuerda más cercana
-└── ui/TunerGaugeView.kt     medidor dibujado con Canvas
-app/src/test/java/…          tests de detección y de afinaciones
+├── MainActivity.kt             interfaz, modos, permisos y estabilización
+├── audio/AudioEngine.kt        captura de micrófono y bucle de análisis
+├── dsp/PitchDetector.kt        YIN (Kotlin puro, testeable en JVM)
+├── music/Music.kt              frecuencia ↔ nota, cents
+├── music/Chords.kt             acordes: detección, transposición y ortografía
+├── music/Tunings.kt            afinaciones y cuerda más cercana
+├── songbook/Song.kt            modelo de canción y almacenamiento JSON local
+├── songbook/ChordSheet.kt      líneas de acordes y alineación de columnas
+├── songbook/SongImporter.kt    descarga y extracción del texto de la página
+├── songbook/PlaylistImporter.kt     listas compartidas de Ultimate Guitar
+├── songbook/SongLibraryActivity.kt  lista de canciones guardadas
+├── songbook/SongViewActivity.kt     visor con desplazamiento de tono
+├── songbook/ImportActivity.kt       compartir, enlace o texto pegado
+├── ui/TunerGaugeView.kt        medidor dibujado con Canvas
+└── ui/EdgeToEdge.kt            insets de sistema compartidos
+app/src/test/java/…             tests de detección, afinaciones, acordes e importación
 ```
 
 ## Licencia

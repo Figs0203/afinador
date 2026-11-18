@@ -65,4 +65,7 @@ android {
 
 dependencies {
     testImplementation("junit:junit:4.13.2")
+    // Real org.json on the JVM so the importer's JSON fallback is testable
+    // (android.jar only ships throwing stubs for unit tests).
+    testImplementation("org.json:json:20240303")
 }

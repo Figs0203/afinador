@@ -6,4 +6,5 @@
     <color name="text_secondary">#8A94A3</color>
     <color name="accent">#3DDC97</color>
     <color name="stroke">#222A33</color>
+    <color name="warning">#E0A33B</color>
 </resources>

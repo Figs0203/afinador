@@ -22,6 +22,7 @@ import io.github.figs0203.afinador.audio.AudioEngine
 import io.github.figs0203.afinador.music.Music
 import io.github.figs0203.afinador.music.Tuning
 import io.github.figs0203.afinador.music.Tunings
+import io.github.figs0203.afinador.songbook.SongLibraryActivity
 import io.github.figs0203.afinador.ui.TunerGaugeView
 import kotlin.math.abs
 import kotlin.math.pow
@@ -77,6 +78,9 @@ class MainActivity : Activity() {
 
         gauge.hintText = getString(R.string.hint_idle)
         gauge.setOnClickListener { onGaugeTapped() }
+        findViewById<TextView>(R.id.openSongbook).setOnClickListener {
+            startActivity(Intent(this, SongLibraryActivity::class.java))
+        }
     }
 
     override fun onResume() {

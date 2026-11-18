@@ -1,0 +1,350 @@
+package io.github.figs0203.afinador.songbook
+
+import org.json.JSONArray
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
+import java.util.zip.GZIPInputStream
+
+/**
+ * Imports a chord sheet from a public song page.
+ *
+ * Both sites render the song inside a `<pre>` block (Ultimate Guitar additionally
+ * keeps a JSON copy in `data-content`), so the text is recovered from there and
+ * everything else — navigation, ads, scripts — is discarded. Only the plain text
+ * is kept; nothing from the page is loaded into a WebView, which is what removes
+ * the ads in the first place.
+ *
+ * If a page cannot be read (paywall, layout change, captcha) the caller shows the
+ * error and the user can paste the text manually, so importing never silently
+ * produces an empty song.
+ */
+object SongImporter {
+
+    class ImportException(message: String) : Exception(message)
+
+    data class Imported(val title: String, val artist: String, val text: String)
+
+    private val PRE_BLOCK = Regex("(?is)<pre[^>]*>(.*?)</pre>")
+    private val DATA_CONTENT = Regex("(?is)data-content=\"([^\"]{2,400000})\"")
+    private val META_TITLE = Regex("(?is)<meta[^>]+property=[\"']og:title[\"'][^>]*>")
+    private val META_TITLE_CONTENT = Regex("(?i)content=[\"']([^\"']+)[\"']")
+    private val DOC_TITLE = Regex("(?is)<title[^>]*>(.*?)</title>")
+    private val URL_PATTERN = Regex("https?://[^\\s\"'<>]+")
+
+    /**
+     * Ultimate Guitar's JSON copy of a tab wraps chords in [ch]…[/ch] and tab
+     * sections in [tab]…[/tab]. Section headers such as [Chorus] are real text
+     * and must survive, so only these lowercase paired tags are dropped.
+     */
+    private val CHORDPRO_TAGS = Regex("(?i)\\[/?(?:ch|tab)\\]")
+
+    private const val USER_AGENT =
+        "Mozilla/5.0 (Linux; Android 13; Pixel 6) AppleWebKit/537.36 " +
+            "(KHTML, like Gecko) Chrome/122.0 Mobile Safari/537.36"
+
+    fun extractUrl(text: String): String? = URL_PATTERN.find(text)?.value
+
+    fun isUrl(text: String): Boolean {
+        val value = text.trim()
+        return URL_PATTERN.matches(value) && value.substringAfter("://").contains('.')
+    }
+
+    /** Accepts a full URL or a bare "cifraclub.com.br/…" the user typed. */
+    fun normalizeUrl(text: String): String? {
+        val candidate = extractUrl(text) ?: text.trim()
+        if (candidate.isBlank()) return null
+        val withScheme =
+            if (candidate.startsWith("http://", true) || candidate.startsWith("https://", true)) {
+                candidate
+            } else {
+                "https://$candidate"
+            }
+        return if (isUrl(withScheme)) withScheme else null
+    }
+
+    fun labelFor(url: String): String {
+        val host = runCatching { URL(url).host.lowercase() }.getOrNull().orEmpty()
+        return when {
+            host.contains("ultimate-guitar") -> "Ultimate Guitar"
+            host.contains("cifraclub") -> "CifraClub"
+            else -> host.ifBlank { "Web" }
+        }
+    }
+
+    fun importFromUrl(url: String): Imported = extract(fetch(url), url)
+
+    fun fetch(url: String): String {
+        val connection = try {
+            URL(url).openConnection() as HttpURLConnection
+        } catch (error: Exception) {
+            throw ImportException("Enlace no válido")
+        }
+
+        connection.connectTimeout = 15_000
+        connection.readTimeout = 20_000
+        connection.instanceFollowRedirects = true
+        connection.setRequestProperty("User-Agent", USER_AGENT)
+        connection.setRequestProperty("Accept", "text/html,application/xhtml+xml")
+        connection.setRequestProperty("Accept-Language", "es-ES,es;q=0.9,en;q=0.8")
+
+        try {
+            val code = connection.responseCode
+            if (code !in 200..299) {
+                throw ImportException(
+                    when (code) {
+                        403, 429 -> "El sitio ha bloqueado la descarga ($code). " +
+                            "Abre la página, copia el texto y pégalo aquí."
+                        else -> "La página respondió con un error $code"
+                    }
+                )
+            }
+            val stream = if (connection.contentEncoding?.contains("gzip", true) == true) {
+                GZIPInputStream(connection.inputStream)
+            } else {
+                connection.inputStream
+            }
+            return stream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+        } catch (error: ImportException) {
+            throw error
+        } catch (error: Exception) {
+            throw ImportException("No se pudo descargar la página: ${error.message ?: "sin conexión"}")
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    fun extract(html: String, url: String): Imported {
+        val cleaned = html
+            .replace(Regex("(?is)<script[^>]*>.*?</script>"), "\n")
+            .replace(Regex("(?is)<style[^>]*>.*?</style>"), "\n")
+            .replace(Regex("(?s)<!--.*?-->"), "")
+
+        val candidates = mutableListOf<String>()
+        PRE_BLOCK.findAll(cleaned).forEach { match ->
+            candidates.add(htmlToText(match.groupValues[1]))
+        }
+        DATA_CONTENT.findAll(cleaned).forEach { match ->
+            runCatching { jsonCandidates(unescapeEntities(match.groupValues[1])) }
+                .getOrNull()
+                ?.let { candidates.addAll(it) }
+        }
+
+        val best = candidates
+            .map { it.trim('\n', ' ', '\t') }
+            .filter { it.isNotBlank() }
+            .maxByOrNull { score(it) }
+
+        if (best == null || score(best) == 0 || best.lineSequence().count() < 2) {
+            throw ImportException(
+                "No se encontró la tablatura en la página. " +
+                    "Ábrela en el navegador, copia el texto y pégalo aquí."
+            )
+        }
+
+        val (title, artist) = titleAndArtist(html, url)
+        return Imported(title = title, artist = artist, text = normalizeSheet(best))
+    }
+
+    private fun score(text: String): Int {
+        var score = 0
+        text.lineSequence().forEach { line ->
+            val trimmed = line.trim()
+            if (trimmed.isEmpty()) return@forEach
+            when {
+                ChordSheet.isChordLine(line) -> score += 5
+                trimmed.count { it == '-' } >= 4 -> score += 3
+                trimmed.length > 8 -> score += 1
+            }
+        }
+        return score
+    }
+
+    private fun normalizeSheet(text: String): String = text
+        .replace("\r\n", "\n")
+        .replace(Regex("\n{4,}"), "\n\n\n")
+        .trim('\n')
+
+    /**
+     * Ultimate Guitar stores the tab as escaped HTML inside `data-content`;
+     * walk the JSON and keep every string that looks like a sheet.
+     */
+    private fun jsonCandidates(decoded: String): List<String> {
+        if (!decoded.trimStart().startsWith("{")) return emptyList()
+        val root = JSONObject(decoded)
+        val found = mutableListOf<String>()
+
+        fun walk(value: Any?) {
+            when (value) {
+                is JSONObject -> value.keys().forEach { key -> walk(value.opt(key)) }
+                is JSONArray -> for (index in 0 until value.length()) walk(value.opt(index))
+                is String -> if (value.contains('\n')) {
+                    found.add(htmlToText(unescapeEntities(value)))
+                }
+            }
+        }
+
+        walk(root)
+        return found
+    }
+
+    private fun htmlToText(fragment: String): String {
+        var text = fragment
+            .replace(Regex("(?i)<br\\s*/?>"), "\n")
+            .replace(Regex("(?i)</(p|div|li|tr|h[1-6])>"), "\n")
+            .replace(Regex("(?s)<[^>]+>"), "")
+
+        text = unescapeEntities(text)
+        text = text.replace(CHORDPRO_TAGS, "")
+        text = text.replace('\u00A0', ' ').replace("\u200B", "")
+        text = text.split('\n').joinToString("\n") { it.trimEnd() }
+        return text.trim('\n', ' ', '\t')
+    }
+
+    private val NAMED_ENTITY = Regex("&([A-Za-z][A-Za-z0-9]{1,31});")
+
+    // Los títulos de Ultimate Guitar escapan los acentos con entidades HTML
+    // (por ejemplo "Seegra&szlig;spinnerei"), así que hay que deshacerlas.
+    private val NAMED_ENTITIES = mapOf(
+        "szlig" to "ß",
+        "agrave" to "à", "aacute" to "á", "acirc" to "â", "atilde" to "ã",
+        "auml" to "ä", "aring" to "å", "aelig" to "æ", "ccedil" to "ç",
+        "egrave" to "è", "eacute" to "é", "ecirc" to "ê", "euml" to "ë",
+        "igrave" to "ì", "iacute" to "í", "icirc" to "î", "iuml" to "ï",
+        "ntilde" to "ñ", "ograve" to "ò", "oacute" to "ó", "ocirc" to "ô",
+        "otilde" to "õ", "ouml" to "ö", "oslash" to "ø", "oelig" to "œ",
+        "ugrave" to "ù", "uacute" to "ú", "ucirc" to "û", "uuml" to "ü",
+        "yacute" to "ý", "yuml" to "ÿ", "thorn" to "þ", "eth" to "ð",
+        "Agrave" to "À", "Aacute" to "Á", "Acirc" to "Â", "Atilde" to "Ã",
+        "Auml" to "Ä", "Aring" to "Å", "AElig" to "Æ", "Ccedil" to "Ç",
+        "Egrave" to "È", "Eacute" to "É", "Ecirc" to "Ê", "Euml" to "Ë",
+        "Igrave" to "Ì", "Iacute" to "Í", "Icirc" to "Î", "Iuml" to "Ï",
+        "Ntilde" to "Ñ", "Ograve" to "Ò", "Oacute" to "Ó", "Ocirc" to "Ô",
+        "Otilde" to "Õ", "Ouml" to "Ö", "Oslash" to "Ø", "OElig" to "Œ",
+        "Ugrave" to "Ù", "Uacute" to "Ú", "Ucirc" to "Û", "Uuml" to "Ü",
+        "Yacute" to "Ý", "Thorn" to "Þ",
+        "ndash" to "–", "mdash" to "—", "hellip" to "…", "middot" to "·",
+        "lsquo" to "‘", "rsquo" to "’", "ldquo" to "“", "rdquo" to "”",
+        "laquo" to "«", "raquo" to "»", "bull" to "•", "deg" to "°",
+        "copy" to "©", "reg" to "®", "trade" to "™", "euro" to "€",
+    )
+
+    internal fun unescapeEntities(text: String): String {
+        var value = Regex("&#x([0-9a-fA-F]{1,6});").replace(text) { match ->
+            runCatching { String(Character.toChars(match.groupValues[1].toInt(16))) }
+                .getOrDefault(match.value)
+        }
+        value = Regex("&#(\\d{1,7});").replace(value) { match ->
+            runCatching { String(Character.toChars(match.groupValues[1].toInt())) }
+                .getOrDefault(match.value)
+        }
+        value = NAMED_ENTITY.replace(value) { match ->
+            NAMED_ENTITIES[match.groupValues[1]] ?: match.value
+        }
+        return value
+            .replace("&nbsp;", " ")
+            .replace("&quot;", "\"")
+            .replace("&apos;", "'")
+            .replace("&#39;", "'")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&amp;", "&")
+    }
+
+    // ------------------------------------------------------------ metadata
+
+    private fun titleAndArtist(html: String, url: String): Pair<String, String> {
+        val raw = META_TITLE.find(html)?.value
+            ?.let { META_TITLE_CONTENT.find(it)?.groupValues?.get(1) }
+            ?: DOC_TITLE.find(html)?.groupValues?.get(1)
+
+        val metadata = raw?.let { unescapeEntities(it) }?.trim().orEmpty()
+        val parsed = parseTitle(metadata, url)
+        if (parsed.first.isNotBlank()) return parsed
+        return fromUrl(url)
+    }
+
+    /**
+     * Both sites put the type of page in the title, in English and in Spanish:
+     * "Wonderwall Chords by Oasis", "WONDERWALL ACORDES (ver 2) por Oasis".
+     * The artist is stripped first, then the leftovers.
+     */
+    private fun parseTitle(raw: String, url: String): Pair<String, String> {
+        var text = raw
+            .replace(Regex("(?i)\\s*@\\s*ultimate[- ]guitar.*$"), "")
+            .replace(Regex("(?i)\\s*[-|–—]\\s*cifra ?club.*$"), "")
+            .trim()
+
+        var artist = ""
+        Regex(
+            "(?i)^(.+?)\\s+(?:chords?|acordes?|cifras?|tabs?|bass tabs?|ukulele chords|power tab|drums?)" +
+                "(?:\\s*\\(ver\\.?\\s*\\d+\\))?\\s+(?:by|por)\\s+(.+)$"
+        ).find(text)?.let { match ->
+            text = match.groupValues[1].trim()
+            artist = match.groupValues[2].trim().trim('-', '–', '—').trim()
+        }
+
+        if (artist.isEmpty()) {
+            Regex("(?i)^(.+?)\\s+(?:by|por)\\s+(.+)$").find(text)?.let { match ->
+                text = match.groupValues[1].trim()
+                artist = match.groupValues[2].trim()
+            }
+        }
+
+        text = text
+            .replace(Regex("(?i)\\s*\\(ver\\.?\\s*\\d+\\)\\s*$"), "")
+            .replace(Regex("(?i)\\s*\\((?:acordes?|cifras?|tabs?|chords?)\\)\\s*$"), "")
+            .replace(Regex("(?i)\\s+(?:chords?|acordes?|cifras?|tabs?|drums?)$"), "")
+            .trim()
+
+        if (artist.isEmpty()) {
+            val dash = Regex("\\s+[-–—]\\s+|\\s+\\|\\s+").find(text)
+            if (dash != null) {
+                val left = text.substring(0, dash.range.first).trim()
+                val right = text.substring(dash.range.last + 1).trim()
+                if (left.isNotEmpty() && right.isNotEmpty()) {
+                    // Ultimate Guitar sorts it as "artist - song", CifraClub as "song - artist".
+                    return when {
+                        url.contains("ultimate-guitar", ignoreCase = true) -> right.take(120) to left.take(120)
+                        url.contains("cifraclub", ignoreCase = true) -> left.take(120) to right.take(120)
+                        else -> left.take(120) to right.take(120)
+                    }
+                }
+            }
+        }
+
+        return text.take(120) to artist.take(120)
+    }
+
+    /** Last resort: derive a readable title from the link path. */
+    internal fun fromUrl(url: String): Pair<String, String> {
+        val parts = runCatching { URL(url).path }
+            .getOrNull()
+            .orEmpty()
+            .split('/')
+            .filter { it.isNotBlank() }
+        if (parts.isEmpty()) return "" to ""
+
+        val (artistSlug, songSlug) = when {
+            parts.size >= 3 && parts[0].equals("tab", true) -> parts[1] to parts[2]
+            parts.size >= 2 -> parts[0] to parts[1]
+            else -> "" to parts[0]
+        }
+        // "wonderwall-chords-27596" -> "wonderwall"
+        val song = songSlug
+            .replace(Regex("-\\d+$"), "")
+            .replace(
+                Regex("-(?:chords?|tabs?|cifras?|acordes?|bass|ukulele|drums|power)$", RegexOption.IGNORE_CASE),
+                ""
+            )
+        return prettify(song) to prettify(artistSlug)
+    }
+
+    private fun prettify(slug: String): String = slug
+        .replace('-', ' ')
+        .replace('_', ' ')
+        .split(' ')
+        .filter { it.isNotBlank() }
+        .joinToString(" ") { word -> word.replaceFirstChar { it.uppercase() } }
+        .take(120)
+}

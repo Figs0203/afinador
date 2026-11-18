@@ -3,6 +3,10 @@
 
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
+    <!-- Only used when importing a chord sheet from a link. The tuner and the
+         saved songbook keep working completely offline. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <uses-feature
         android:name="android.hardware.microphone"
         android:required="true" />
@@ -23,6 +27,64 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".songbook.SongLibraryActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden|uiMode"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".songbook.SongViewActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden|uiMode"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".songbook.ImportActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden|uiMode"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:screenOrientation="portrait">
+
+            <!-- Share sheet: "Compartir página" from the browser or the tab app. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+
+            <!-- Links to the supported sites. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:host="ultimate-guitar.com"
+                    android:scheme="https" />
+                <data
+                    android:host="www.ultimate-guitar.com"
+                    android:scheme="https" />
+                <data
+                    android:host="tabs.ultimate-guitar.com"
+                    android:scheme="https" />
+                <data
+                    android:host="cifraclub.com"
+                    android:scheme="https" />
+                <data
+                    android:host="www.cifraclub.com"
+                    android:scheme="https" />
+                <data
+                    android:host="cifraclub.com.br"
+                    android:scheme="https" />
+                <data
+                    android:host="www.cifraclub.com.br"
+                    android:scheme="https" />
+                <data
+                    android:host="m.cifraclub.com.br"
+                    android:scheme="https" />
             </intent-filter>
         </activity>
     </application>
