@@ -80,7 +80,11 @@ class ImportActivity : Activity() {
         linkButton.setOnClickListener { importLink() }
         saveButton.setOnClickListener { savePasted() }
 
-        registerReceiver(progressReceiver, IntentFilter(PlaylistImportService.BROADCAST_PROGRESS))
+        registerReceiver(
+            progressReceiver,
+            IntentFilter(PlaylistImportService.BROADCAST_PROGRESS),
+            Context.RECEIVER_NOT_EXPORTED
+        )
 
         handleIntent(intent)
     }
