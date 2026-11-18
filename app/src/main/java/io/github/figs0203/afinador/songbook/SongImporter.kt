@@ -74,15 +74,42 @@ object SongImporter {
 
     fun importFromUrl(url: String): Imported = extract(fetch(url), url)
 
+    /**
+     * Descarga la página con varios intentos: Ultimate Guitar responde a veces
+     * con 500/"Check 1,2..." o se queda colgado bajo carga, así que un reintento
+     * tras una pausa corta resuelve la mayoría de los fallos transitorios.
+     */
     fun fetch(url: String): String {
+        var lastError: Exception? = null
+        repeat(3) { attempt ->
+            try {
+                return fetchOnce(url)
+            } catch (error: ImportException) {
+                // Los errores HTTP definitivos (403/429/404) no mejoran reintentando.
+                if (error.message?.contains("bloqueado") == true ||
+                    error.message?.contains("error 4") == true
+                ) throw error
+                lastError = error
+                if (attempt < 2) runCatching { Thread.sleep(1500L * (attempt + 1)) }
+            } catch (error: Exception) {
+                lastError = error
+                if (attempt < 2) runCatching { Thread.sleep(1500L * (attempt + 1)) }
+            }
+        }
+        throw ImportException(
+            lastError?.message ?: "No se pudo descargar la página: sin conexión"
+        )
+    }
+
+    private fun fetchOnce(url: String): String {
         val connection = try {
             URL(url).openConnection() as HttpURLConnection
         } catch (error: Exception) {
             throw ImportException("Enlace no válido")
         }
 
-        connection.connectTimeout = 15_000
-        connection.readTimeout = 20_000
+        connection.connectTimeout = 20_000
+        connection.readTimeout = 45_000
         connection.instanceFollowRedirects = true
         connection.setRequestProperty("User-Agent", USER_AGENT)
         connection.setRequestProperty("Accept", "text/html,application/xhtml+xml")
@@ -98,6 +125,9 @@ object SongImporter {
                     when (code) {
                         403, 429 -> "El sitio ha bloqueado la descarga ($code). " +
                             "Abre la página, copia el texto y pégalo aquí."
+                        500, 502, 503, 504 -> "Ultimate Guitar no responde ahora " +
+                            "(mantenimiento o sobrecarga, $code). Intenta más tarde " +
+                            "o abre la página y pega el texto."
                         else -> "La página respondió con un error $code"
                     }
                 )
@@ -107,7 +137,14 @@ object SongImporter {
             } else {
                 connection.inputStream
             }
-            return stream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+            val body = stream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+            if (body.contains("Check 1,2", ignoreCase = true)) {
+                throw ImportException(
+                    "Ultimate Guitar está en mantenimiento (\"Check 1,2...\"). " +
+                        "Intenta más tarde o abre la página y pega el texto."
+                )
+            }
+            return body
         } catch (error: ImportException) {
             throw error
         } catch (error: Exception) {
