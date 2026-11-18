@@ -23,6 +23,8 @@ Solo pide dos permisos: el micrófono y, únicamente para importar un enlace, in
 - **Cancionero** — guarda tablaturas y páginas de acordes de Ultimate Guitar y
   CifraClub y las muestra como texto limpio, sin anuncios, con el tono desplazable
   de medio en medio tono.
+- **Listas propias** — agrupa las canciones guardadas en listas que creas tú,
+  renómbralas o bórralas sin perder las canciones.
 
 ## Capturas
 
@@ -42,7 +44,7 @@ detectada y su frecuencia objetivo.
    cuando Android lo pida.
 3. Al abrir la app, concede el permiso de micrófono.
 
-Requiere Android 6.0 (API 23) o superior. Tamaño del APK: ~126 KB.
+Requiere Android 6.0 (API 23) o superior. Tamaño del APK: ~135 KB.
 
 ## Uso
 
@@ -88,6 +90,10 @@ cuentan como fallo en el resumen.
 
 Se guarda **solo el texto** en el almacenamiento privado de la app, para uso personal.
 Las canciones se pueden borrar desde la lista con el aspa **✕**.
+
+Además puedes crear tus propias **listas**: desde el visor de una canción o desde
+su fila en el cancionero usa *Añadir a lista* para agruparlas; las listas se
+gestionan con el botón *Listas* de la cabecera del cancionero.
 
 La transposición solo toca los acordes: detecta las líneas de acordes por contenido
 (nunca por posición), conserva las columnas para que cada acorde siga sobre su sílaba
@@ -191,12 +197,15 @@ app/src/main/java/io/github/figs0203/afinador/
 ├── music/Chords.kt             acordes: detección, transposición y ortografía
 ├── music/Tunings.kt            afinaciones y cuerda más cercana
 ├── songbook/Song.kt            modelo de canción y almacenamiento JSON local
+├── songbook/Playlist.kt        modelo de lista propia y su almacenamiento JSON
 ├── songbook/ChordSheet.kt      líneas de acordes y alineación de columnas
 ├── songbook/SongImporter.kt    descarga y extracción del texto de la página
 ├── songbook/PlaylistImporter.kt     listas compartidas de Ultimate Guitar
 ├── songbook/SongLibraryActivity.kt  lista de canciones guardadas
 ├── songbook/SongViewActivity.kt     visor con desplazamiento de tono
 ├── songbook/ImportActivity.kt       compartir, enlace o texto pegado
+├── songbook/PlaylistsActivity.kt    listas propias del usuario
+├── songbook/PlaylistDetailActivity.kt  canciones de una lista
 ├── ui/TunerGaugeView.kt        medidor dibujado con Canvas
 └── ui/EdgeToEdge.kt            insets de sistema compartidos
 app/src/test/java/…             tests de detección, afinaciones, acordes e importación

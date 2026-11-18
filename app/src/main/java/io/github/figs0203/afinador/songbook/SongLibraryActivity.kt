@@ -17,6 +17,7 @@ class SongLibraryActivity : Activity() {
     private lateinit var songList: android.widget.LinearLayout
     private lateinit var subtitle: TextView
     private val store by lazy { SongStore(this) }
+    private val playlistStore by lazy { PlaylistStore(this) }
     private val density by lazy { resources.displayMetrics.density }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -30,6 +31,9 @@ class SongLibraryActivity : Activity() {
         findViewById<View>(R.id.backButton).setOnClickListener { finish() }
         findViewById<View>(R.id.importButton).setOnClickListener {
             startActivity(Intent(this, ImportActivity::class.java))
+        }
+        findViewById<View>(R.id.playlistsButton).setOnClickListener {
+            startActivity(Intent(this, PlaylistsActivity::class.java))
         }
     }
 
@@ -116,12 +120,24 @@ class SongLibraryActivity : Activity() {
         )
 
         row.addView(TextView(this).apply {
+            text = "+"
+            textSize = 18f
+            gravity = android.view.Gravity.CENTER
+            setTextColor(getColor(R.color.text_secondary))
+            contentDescription = getString(R.string.song_add_to_playlist)
+            setPadding(dp(12), dp(8), dp(4), dp(8))
+            isClickable = true
+            isFocusable = true
+            setOnClickListener { addToPlaylist(song) }
+        })
+
+        row.addView(TextView(this).apply {
             text = "✕"
             textSize = 15f
             gravity = android.view.Gravity.CENTER
             setTextColor(getColor(R.color.text_secondary))
             contentDescription = getString(R.string.songbook_delete)
-            setPadding(dp(16), dp(8), 0, dp(8))
+            setPadding(dp(12), dp(8), 0, dp(8))
             isClickable = true
             isFocusable = true
             setOnClickListener { confirmDelete(song) }
@@ -135,6 +151,49 @@ class SongLibraryActivity : Activity() {
             Intent(this, SongViewActivity::class.java)
                 .putExtra(SongViewActivity.EXTRA_SONG_ID, song.id)
         )
+    }
+
+    private fun addToPlaylist(song: Song) {
+        val playlists = playlistStore.all()
+        val names = playlists.map { it.name }.toMutableList()
+        names.add(getString(R.string.playlists_create_and_add))
+
+        android.app.AlertDialog.Builder(this)
+            .setTitle(getString(R.string.playlists_add_to_title, song.title))
+            .setItems(names.toTypedArray()) { _, which ->
+                if (which == playlists.size) {
+                    promptCreateAndAdd(song)
+                } else {
+                    playlistStore.addSong(playlists[which].id, song.id)
+                    android.widget.Toast.makeText(
+                        this,
+                        getString(R.string.playlists_added, playlists[which].name),
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+            .show()
+    }
+
+    private fun promptCreateAndAdd(song: Song) {
+        val input = android.widget.EditText(this).apply {
+            hint = getString(R.string.playlists_name_hint)
+            setPadding(dp(12), dp(8), dp(12), dp(8))
+        }
+        android.app.AlertDialog.Builder(this)
+            .setTitle(R.string.playlists_new)
+            .setView(input)
+            .setNegativeButton(R.string.songbook_cancel, null)
+            .setPositiveButton(R.string.playlists_create_action) { _, _ ->
+                val playlist = playlistStore.create(input.text.toString())
+                playlistStore.addSong(playlist.id, song.id)
+                android.widget.Toast.makeText(
+                    this,
+                    getString(R.string.playlists_added, playlist.name),
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+            }
+            .show()
     }
 
     private fun confirmDelete(song: Song) {

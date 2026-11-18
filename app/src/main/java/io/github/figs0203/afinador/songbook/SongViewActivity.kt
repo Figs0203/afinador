@@ -27,6 +27,7 @@ class SongViewActivity : Activity() {
     private lateinit var sourceView: TextView
 
     private val store by lazy { SongStore(this) }
+    private val playlistStore by lazy { PlaylistStore(this) }
     private var song: Song? = null
     private var semitones = 0
 
@@ -44,6 +45,7 @@ class SongViewActivity : Activity() {
         sourceView = findViewById(R.id.songSource)
 
         findViewById<View>(R.id.backButton).setOnClickListener { finish() }
+        findViewById<View>(R.id.addToPlaylistButton).setOnClickListener { song?.let { addToPlaylist(it) } }
 
         val current = intent.getStringExtra(EXTRA_SONG_ID)?.let { store.get(it) }
         if (current == null) {
@@ -107,6 +109,51 @@ class SongViewActivity : Activity() {
         }
         sheet.text = builder
     }
+
+    private fun addToPlaylist(song: Song) {
+        val playlists = playlistStore.all()
+        val names = playlists.map { it.name }.toMutableList()
+        names.add(getString(R.string.playlists_create_and_add))
+
+        android.app.AlertDialog.Builder(this)
+            .setTitle(getString(R.string.playlists_add_to_title, song.title))
+            .setItems(names.toTypedArray()) { _, which ->
+                if (which == playlists.size) {
+                    promptCreateAndAdd(song)
+                } else {
+                    playlistStore.addSong(playlists[which].id, song.id)
+                    android.widget.Toast.makeText(
+                        this,
+                        getString(R.string.playlists_added, playlists[which].name),
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+            .show()
+    }
+
+    private fun promptCreateAndAdd(song: Song) {
+        val input = android.widget.EditText(this).apply {
+            hint = getString(R.string.playlists_name_hint)
+            setPadding(dp(12), dp(8), dp(12), dp(8))
+        }
+        android.app.AlertDialog.Builder(this)
+            .setTitle(R.string.playlists_new)
+            .setView(input)
+            .setNegativeButton(R.string.songbook_cancel, null)
+            .setPositiveButton(R.string.playlists_create_action) { _, _ ->
+                val playlist = playlistStore.create(input.text.toString())
+                playlistStore.addSong(playlist.id, song.id)
+                android.widget.Toast.makeText(
+                    this,
+                    getString(R.string.playlists_added, playlist.name),
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+            }
+            .show()
+    }
+
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
     companion object {
         const val EXTRA_SONG_ID = "io.github.figs0203.afinador.song_id"

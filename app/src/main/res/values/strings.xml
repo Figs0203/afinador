@@ -73,4 +73,27 @@
     <string name="playlist_summary_skipped_one">%1$d ya estaba</string>
     <string name="playlist_summary_failed">%1$d no se pudieron leer</string>
     <string name="playlist_summary_failed_one">%1$d no se pudo leer</string>
+    <!-- Listas (playlists) del usuario -->
+    <string name="playlists_title">Listas</string>
+    <string name="playlists_subtitle">Tus listas de canciones</string>
+    <string name="playlists_count">%1$d listas</string>
+    <string name="playlists_empty">Aún no tienes listas.\n\nCrea una y añade canciones desde el cancionero.</string>
+    <string name="playlists_new">Nueva lista</string>
+    <string name="playlists_delete">Eliminar lista</string>
+    <string name="playlists_delete_title">¿Eliminar lista?</string>
+    <string name="playlists_delete_message">Se quitará «%1$s». Las canciones no se eliminan del cancionero.</string>
+    <string name="playlists_rename">Renombrar</string>
+    <string name="playlists_name_hint">Nombre de la lista</string>
+    <string name="playlists_create_action">Crear</string>
+    <string name="playlists_back">Volver</string>
+    <string name="playlists_song_count">%1$d canciones</string>
+    <string name="playlists_detail_empty">Esta lista no tiene canciones todavía.\n\nÁbrelas desde el cancionero y usa «Añadir a lista».</string>
+    <string name="playlists_add_to">Añadir a lista</string>
+    <string name="playlists_add_to_title">Añadir «%1$s» a una lista</string>
+    <string name="playlists_create_and_add">Crear lista nueva…</string>
+    <string name="playlists_added">Añadida a «%1$s»</string>
+    <string name="playlists_removed">Quitada de la lista</string>
+    <string name="library_playlists">Listas</string>
+    <string name="song_add_to_playlist">Añadir a lista</string>
 </resources>
+

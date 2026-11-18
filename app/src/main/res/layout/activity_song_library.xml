@@ -57,6 +57,22 @@
         </LinearLayout>
 
         <TextView
+            android:id="@+id/playlistsButton"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/chip_normal"
+            android:clickable="true"
+            android:focusable="true"
+            android:fontFamily="sans-serif-medium"
+            android:gravity="center"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:text="@string/library_playlists"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp" />
+
+        <TextView
             android:id="@+id/importButton"
             android:layout_width="wrap_content"
             android:layout_height="32dp"

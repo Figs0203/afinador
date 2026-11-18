@@ -43,6 +43,18 @@
             android:screenOrientation="portrait" />
 
         <activity
+            android:name=".songbook.PlaylistsActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden|uiMode"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".songbook.PlaylistDetailActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden|uiMode"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
             android:name=".songbook.ImportActivity"
             android:configChanges="orientation|screenSize|keyboardHidden|uiMode"
             android:exported="true"
