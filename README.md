@@ -42,7 +42,7 @@ detectada y su frecuencia objetivo.
    cuando Android lo pida.
 3. Al abrir la app, concede el permiso de micrófono.
 
-Requiere Android 6.0 (API 23) o superior. Tamaño del APK: ~90 KB.
+Requiere Android 6.0 (API 23) o superior. Tamaño del APK: ~126 KB.
 
 ## Uso
 
