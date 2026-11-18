@@ -14,31 +14,78 @@
         android:paddingTop="6dp"
         android:paddingBottom="14dp">
 
-        <TextView
+        <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:fontFamily="sans-serif-medium"
-            android:letterSpacing="0.04"
-            android:text="@string/app_title"
-            android:textColor="@color/text_primary"
-            android:textSize="17sp" />
+            android:orientation="vertical">
 
-        <View
-            android:id="@+id/statusDot"
-            android:layout_width="7dp"
-            android:layout_height="7dp"
-            android:background="@drawable/dot_status" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-medium"
+                android:letterSpacing="0.04"
+                android:text="@string/app_title"
+                android:textColor="@color/text_primary"
+                android:textSize="17sp" />
 
-        <TextView
-            android:id="@+id/statusText"
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <View
+                    android:id="@+id/statusDot"
+                    android:layout_width="7dp"
+                    android:layout_height="7dp"
+                    android:background="@drawable/dot_status" />
+
+                <TextView
+                    android:id="@+id/statusText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="7dp"
+                    android:fontFamily="sans-serif"
+                    android:text="@string/status_waiting"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/openSongbook"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="7dp"
-            android:fontFamily="sans-serif"
-            android:text="@string/status_waiting"
-            android:textColor="@color/text_secondary"
-            android:textSize="12sp" />
+            android:clickable="true"
+            android:contentDescription="@string/songbook_title"
+            android:focusable="true"
+            android:gravity="end"
+            android:orientation="vertical"
+            android:paddingStart="16dp"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-medium"
+                android:letterSpacing="0.02"
+                android:text="@string/songbook_title"
+                android:textColor="@color/accent"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/songbookSummary"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:fontFamily="sans-serif"
+                android:text="@string/songbook_header_empty"
+                android:textColor="@color/text_secondary"
+                android:textSize="11sp" />
+        </LinearLayout>
     </LinearLayout>
 
     <LinearLayout
@@ -111,58 +158,6 @@
             android:layout_marginTop="12dp"
             android:orientation="horizontal"
             android:visibility="gone" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/openSongbook"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:background="@drawable/songbook_card"
-        android:clickable="true"
-        android:contentDescription="@string/songbook_title"
-        android:focusable="true"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingStart="18dp"
-        android:paddingTop="14dp"
-        android:paddingEnd="16dp"
-        android:paddingBottom="14dp">
-
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="sans-serif-medium"
-                android:letterSpacing="0.03"
-                android:text="@string/songbook_title"
-                android:textColor="@color/accent"
-                android:textSize="15sp" />
-
-            <TextView
-                android:id="@+id/songbookSummary"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="3dp"
-                android:fontFamily="sans-serif"
-                android:text="@string/songbook_open_subtitle"
-                android:textColor="@color/text_secondary"
-                android:textSize="12sp" />
-        </LinearLayout>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="10dp"
-            android:fontFamily="sans-serif"
-            android:text="›"
-            android:textColor="@color/text_secondary"
-            android:textSize="24sp" />
     </LinearLayout>
 
     <TextView

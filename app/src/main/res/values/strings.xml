@@ -23,11 +23,7 @@
     <!-- Cancionero -->
     <string name="songbook_title">Cancionero</string>
     <string name="songbook_subtitle">Acordes y tablaturas sin anuncios</string>
-    <string name="songbook_open_subtitle">Acordes y tablaturas guardados</string>
-    <plurals name="songbook_open_count">
-        <item quantity="one">%1$d canción guardada · toca para abrir</item>
-        <item quantity="other">%1$d canciones guardadas · toca para abrir</item>
-    </plurals>
+    <string name="songbook_header_empty">Sin canciones</string>
     <plurals name="songbook_count">
         <item quantity="one">%1$d canción guardada</item>
         <item quantity="other">%1$d canciones guardadas</item>

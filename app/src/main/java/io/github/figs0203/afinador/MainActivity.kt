@@ -232,13 +232,13 @@ class MainActivity : Activity() {
 
     // ------------------------------------------------------------------- ui
 
-    /** The songbook is a main feature, so the home screen shows how much is saved. */
+    /** The songbook is a main feature, so the header shows how much is saved. */
     private fun updateSongbookSummary() {
         val count = store.all().size
         songbookSummary.text = if (count == 0) {
-            getString(R.string.songbook_open_subtitle)
+            getString(R.string.songbook_header_empty)
         } else {
-            resources.getQuantityString(R.plurals.songbook_open_count, count, count)
+            resources.getQuantityString(R.plurals.songbook_count, count, count)
         }
     }
 
