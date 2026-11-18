@@ -86,7 +86,10 @@ object SongImporter {
         connection.instanceFollowRedirects = true
         connection.setRequestProperty("User-Agent", USER_AGENT)
         connection.setRequestProperty("Accept", "text/html,application/xhtml+xml")
-        connection.setRequestProperty("Accept-Language", "es-ES,es;q=0.9,en;q=0.8")
+        // Ultimate Guitar redirige www -> es. (u otra localización) según el
+        // idioma pedido, y la página de listas compartidas responde 500 cuando se
+        // pide en español. Pedir inglés evita esa redirección y devuelve 200.
+        connection.setRequestProperty("Accept-Language", "en-US,en;q=0.9")
 
         try {
             val code = connection.responseCode
