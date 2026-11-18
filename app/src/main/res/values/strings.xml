@@ -23,7 +23,15 @@
     <!-- Cancionero -->
     <string name="songbook_title">Cancionero</string>
     <string name="songbook_subtitle">Acordes y tablaturas sin anuncios</string>
-    <string name="songbook_count">%1$d canciones guardadas</string>
+    <string name="songbook_open_subtitle">Acordes y tablaturas guardados</string>
+    <plurals name="songbook_open_count">
+        <item quantity="one">%1$d canción guardada · toca para abrir</item>
+        <item quantity="other">%1$d canciones guardadas · toca para abrir</item>
+    </plurals>
+    <plurals name="songbook_count">
+        <item quantity="one">%1$d canción guardada</item>
+        <item quantity="other">%1$d canciones guardadas</item>
+    </plurals>
     <string name="songbook_import">Importar</string>
     <string name="songbook_delete">Eliminar</string>
     <string name="songbook_delete_title">¿Eliminar canción?</string>
@@ -48,6 +56,7 @@
     <string name="song_transpose_up">Subir medio tono</string>
     <string name="song_transpose_down">Bajar medio tono</string>
     <string name="song_transpose_reset">Volver al tono original</string>
+    <string name="song_transpose_reset_symbol">↺</string>
 
     <string name="import_title">Importar canción</string>
     <string name="import_link_label">Enlace de la canción o de una lista</string>

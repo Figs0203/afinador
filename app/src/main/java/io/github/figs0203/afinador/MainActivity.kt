@@ -23,6 +23,7 @@ import io.github.figs0203.afinador.music.Music
 import io.github.figs0203.afinador.music.Tuning
 import io.github.figs0203.afinador.music.Tunings
 import io.github.figs0203.afinador.songbook.SongLibraryActivity
+import io.github.figs0203.afinador.songbook.SongStore
 import io.github.figs0203.afinador.ui.TunerGaugeView
 import kotlin.math.abs
 import kotlin.math.pow
@@ -40,7 +41,9 @@ class MainActivity : Activity() {
     private lateinit var stringRow: LinearLayout
     private lateinit var statusDot: View
     private lateinit var statusText: TextView
+    private lateinit var songbookSummary: TextView
 
+    private val store by lazy { SongStore(this) }
     private val handler = Handler(Looper.getMainLooper())
     private val recentFrequencies = ArrayDeque<Double>()
     private val tuningChips = mutableListOf<Pair<Tuning, TextView>>()
@@ -69,6 +72,7 @@ class MainActivity : Activity() {
         stringRow = findViewById(R.id.stringRow)
         statusDot = findViewById(R.id.statusDot)
         statusText = findViewById(R.id.statusText)
+        songbookSummary = findViewById(R.id.songbookSummary)
 
         applyWindowInsets()
         setupModeButtons()
@@ -78,13 +82,14 @@ class MainActivity : Activity() {
 
         gauge.hintText = getString(R.string.hint_idle)
         gauge.setOnClickListener { onGaugeTapped() }
-        findViewById<TextView>(R.id.openSongbook).setOnClickListener {
+        findViewById<View>(R.id.openSongbook).setOnClickListener {
             startActivity(Intent(this, SongLibraryActivity::class.java))
         }
     }
 
     override fun onResume() {
         super.onResume()
+        updateSongbookSummary()
         if (hasMicrophonePermission()) {
             startListening()
         } else {
@@ -226,6 +231,16 @@ class MainActivity : Activity() {
     }
 
     // ------------------------------------------------------------------- ui
+
+    /** The songbook is a main feature, so the home screen shows how much is saved. */
+    private fun updateSongbookSummary() {
+        val count = store.all().size
+        songbookSummary.text = if (count == 0) {
+            getString(R.string.songbook_open_subtitle)
+        } else {
+            resources.getQuantityString(R.plurals.songbook_open_count, count, count)
+        }
+    }
 
     private fun setupModeButtons() {
         modeChromatic.setOnClickListener {

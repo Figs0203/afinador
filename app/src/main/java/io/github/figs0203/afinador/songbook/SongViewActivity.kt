@@ -25,6 +25,7 @@ class SongViewActivity : Activity() {
     private lateinit var transposeLabel: TextView
     private lateinit var transposeDown: TextView
     private lateinit var transposeUp: TextView
+    private lateinit var transposeReset: TextView
     private lateinit var titleView: TextView
     private lateinit var artistView: TextView
     private lateinit var sourceView: TextView
@@ -43,6 +44,7 @@ class SongViewActivity : Activity() {
         transposeLabel = findViewById(R.id.transposeLabel)
         transposeDown = findViewById(R.id.transposeDown)
         transposeUp = findViewById(R.id.transposeUp)
+        transposeReset = findViewById(R.id.transposeReset)
         titleView = findViewById(R.id.songTitle)
         artistView = findViewById(R.id.songArtist)
         sourceView = findViewById(R.id.songSource)
@@ -71,6 +73,7 @@ class SongViewActivity : Activity() {
         transposeDown.setOnClickListener { shift(-1) }
         transposeUp.setOnClickListener { shift(1) }
         transposeLabel.setOnClickListener { setTranspose(0) }
+        transposeReset.setOnClickListener { setTranspose(0) }
 
         updateTransposeLabel()
         render()
@@ -95,6 +98,9 @@ class SongViewActivity : Activity() {
         transposeLabel.setTextColor(getColor(if (semitones == 0) R.color.text_secondary else R.color.accent))
         transposeDown.alpha = if (semitones <= MIN_SEMITONES) 0.35f else 1f
         transposeUp.alpha = if (semitones >= MAX_SEMITONES) 0.35f else 1f
+        // The chosen key is stored with the song, so the reset is only useful once transposed.
+        // It keeps its space hidden so the +/- buttons never move under the finger.
+        transposeReset.visibility = if (semitones == 0) View.INVISIBLE else View.VISIBLE
     }
 
     private fun render() {

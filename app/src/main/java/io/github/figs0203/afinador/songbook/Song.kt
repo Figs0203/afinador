@@ -20,6 +20,10 @@ data class Song(
     val savedAt: Long,
     val transposeSemitones: Int = 0
 ) {
+    /** Keeps the key already chosen for this song when its text is refreshed. */
+    fun keepingTransposeOf(previous: Song?): Song =
+        if (previous == null) this else copy(transposeSemitones = previous.transposeSemitones)
+
     fun toJson(): JSONObject = JSONObject().apply {
         put("id", id)
         put("title", title)
@@ -60,8 +64,10 @@ class SongStore(context: Context) {
 
     fun add(song: Song) = synchronized(lock) {
         val songs = read().toMutableList()
+        val previous = songs.firstOrNull { it.id == song.id || (song.url != null && it.url == song.url) }
         songs.removeAll { it.id == song.id || (song.url != null && it.url == song.url) }
-        songs.add(0, song)
+        // Re-importing a page must not throw away the key the user chose.
+        songs.add(0, song.keepingTransposeOf(previous))
         write(songs)
     }
 
@@ -73,8 +79,13 @@ class SongStore(context: Context) {
         if (songs.isEmpty()) return@synchronized
         val ids = songs.map { it.id }.toSet()
         val urls = songs.mapNotNull { it.url }.toSet()
-        val kept = read().filterNot { it.id in ids || (it.url != null && it.url in urls) }
-        write(songs + kept)
+        val current = read()
+        val replaced = current.filter { it.id in ids || (it.url != null && it.url in urls) }
+        val kept = current.filterNot { it.id in ids || (it.url != null && it.url in urls) }
+        val incoming = songs.map { song ->
+            song.keepingTransposeOf(replaced.firstOrNull { it.id == song.id || (song.url != null && it.url == song.url) })
+        }
+        write(incoming + kept)
     }
 
     fun delete(id: String) = synchronized(lock) {

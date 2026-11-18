@@ -115,7 +115,7 @@ class SongLibraryActivity : Activity() {
         subtitle.text = if (all.isEmpty()) {
             getString(R.string.songbook_subtitle)
         } else {
-            getString(R.string.songbook_count, all.size)
+            resources.getQuantityString(R.plurals.songbook_count, all.size, all.size)
         }
 
         if (sortedSongs.isEmpty()) {
@@ -204,8 +204,13 @@ class SongLibraryActivity : Activity() {
             ellipsize = android.text.TextUtils.TruncateAt.END
         })
         val artist = song.artist.ifBlank { getString(R.string.song_empty_artist) }
+        val transpose = when {
+            song.transposeSemitones > 0 -> getString(R.string.song_transpose_up_value, song.transposeSemitones)
+            song.transposeSemitones < 0 -> getString(R.string.song_transpose_down_value, -song.transposeSemitones)
+            else -> null
+        }
         texts.addView(TextView(this).apply {
-            text = "$artist · ${song.source}"
+            text = listOfNotNull(artist, song.source, transpose).joinToString(" · ")
             textSize = 12f
             setTextColor(getColor(R.color.text_secondary))
             maxLines = 1
